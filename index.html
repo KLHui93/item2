@@ -1,0 +1,1915 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blok Mainan – Kubus, Kuboid dan Permukaan rata Terdedah</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<style>
+:root{
+  --ink:#241B35; --muted:#6B6480; --pu:#4E2483; --pu2:#6B3FA8; --pu3:#7C4DCC;
+  --pu-l:#F4EFFB; --pu-m:#E4D9F4; --line:#8F72C4; --ok:#1C6E50; --ok-bg:#E5F4EC;
+  --err:#9E3524; --err-bg:#FBECE8; --info-bg:#F4EFFB; --teal:#1F6F66; --bg:#F7F4FB;
+  --blue:#2F7FB0; --blue-bg:#DDEEF8; --green:#1F7A5C; --amber-bg:#FBF2E1; --amber:#8A5A00;
+  --card:#fff; --grey:#E9E7EE; --grey-ink:#8E8A99; --focus:#F2B705;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Lexend,system-ui,sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:8px}
+
+.wrap{max-width:1280px;margin:0 auto;padding:16px 16px 80px}
+
+/* ---------- big module header ---------- */
+.apphead{position:relative;overflow:hidden;background:linear-gradient(120deg,var(--pu) 0%,var(--pu2) 55%,var(--pu3) 100%);color:#fff;border-radius:18px;padding:22px 28px;margin:0 0 14px;box-shadow:0 10px 26px rgba(78,36,131,.22)}
+.apphead h1{position:relative;z-index:1;margin:0;font-size:34px;font-weight:700;letter-spacing:.3px;line-height:1.15}
+.apphead .deco{position:absolute;right:-10px;top:50%;transform:translateY(-50%);height:150%;width:auto;opacity:.18;pointer-events:none}
+@media (max-width:480px){.apphead{padding:16px 18px;border-radius:14px}.apphead h1{font-size:24px}.apphead .deco{display:none}}
+
+/* ---------- 3D viewport ---------- */
+.viz3d{position:relative;flex:1;min-height:300px;border-radius:12px;background:radial-gradient(ellipse at 50% 40%,#fff 0%,#F6F1FC 70%,#EEE6F8 100%);overflow:hidden;touch-action:none;user-select:none}
+.viz3d canvas,.viz3d svg.fallback{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+.viz3d .ov{position:absolute;inset:0;pointer-events:none}
+.viz3d .loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px}
+.l3{position:absolute;left:0;top:0;transform:translate(-50%,-50%);background:#fff;border:1.5px solid var(--pu2);color:var(--pu);border-radius:999px;padding:3px 11px;font-size:13px;font-weight:600;white-space:nowrap;box-shadow:0 4px 12px rgba(78,36,131,.15);transition:opacity .2s}
+.l3 .in{display:block;animation:lblIn .3s}
+.l3.teal{background:var(--teal);color:#fff;border-color:var(--teal)}
+.l3.err{background:var(--err);color:#fff;border-color:var(--err)}
+.l3.letter{background:transparent;border:0;box-shadow:none;color:var(--pu);font-size:15px;padding:0}
+.l3.fl{padding:2px 10px;font-size:13px;background:rgba(255,255,255,.85)}
+.l3.fl.on{background:var(--pu2);color:#fff}
+.l3.nb{width:26px;height:26px;padding:0;display:grid;place-items:center;border-radius:50%;font-size:13px;color:#fff;border:2px solid #fff}
+.l3.nb.v{background:var(--pu2)} .l3.nb.e{background:var(--green)} .l3.nb.f{background:var(--blue)}
+.l3.nb.e.g1{background:var(--pu2)} .l3.nb.e.g2{background:var(--blue)}
+.l3.hidden-dim{opacity:.55}
+.l3.hidden-off{opacity:0}
+.l3.help{background:var(--focus);border-color:#C99700;color:#3a2a00;animation:pulse 1s ease-in-out infinite}
+@keyframes lblIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(242,183,5,.25)}}
+.proxy{position:absolute;left:0;top:0;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:0;background:transparent;opacity:0;pointer-events:none;padding:0}
+.proxy:focus-visible{opacity:1;outline:3px solid var(--focus);outline-offset:0;background:rgba(242,183,5,.18)}
+.viz-hint{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:12px;color:var(--muted);margin:0;pointer-events:none}
+
+/* ---------- overlays ---------- */
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#2A2140;color:#fff;padding:10px 18px;border-radius:10px;font-size:14px;opacity:0;transition:all .3s;z-index:2000;pointer-events:none;max-width:calc(100vw - 32px);text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.modal{position:fixed;inset:0;background:rgba(36,27,53,.45);display:none;place-items:center;z-index:1500;padding:16px}
+.modal.show{display:grid;animation:screenIn .3s}
+.modal .box{background:#fff;border-radius:16px;padding:24px;max-width:480px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.modal h3{margin:0 0 6px;color:var(--pu)}
+.modal .opts{display:grid;gap:10px;margin:16px 0}
+.modal .opt{text-align:left;padding:14px 16px;border-radius:12px;border:1.5px solid var(--pu-m);background:#fff;cursor:pointer}
+.modal .opt:hover{background:var(--pu-l);border-color:var(--pu2)}
+.modal .opt b{display:block;color:var(--pu)}
+.modal .opt em{font-style:normal;font-size:11.5px;font-weight:700;background:var(--focus);color:#3a2a00;border-radius:6px;padding:1px 7px;margin-left:6px}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:1800}
+
+/* ---------- dev panel ---------- */
+.devtoggle{position:fixed;right:16px;bottom:16px;z-index:1400;background:#2A2140;color:#fff;border:0;border-radius:999px;padding:10px 16px;font-size:13px;cursor:pointer;min-height:44px;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+.dev{position:fixed;right:16px;bottom:70px;width:min(460px,calc(100vw - 32px));max-height:70vh;overflow:auto;background:#fff;border:1.5px solid #2A2140;border-radius:14px;padding:16px;z-index:1400;display:none;font-size:13px;box-shadow:0 18px 40px rgba(0,0,0,.25)}
+.dev.show{display:block}
+.dev h4{margin:0 0 8px;font-size:14px}
+.dev .jump{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.dev .jump button{border:1px solid #CCC;border-radius:8px;background:#fff;padding:6px 10px;cursor:pointer}
+.dev label{display:flex;gap:8px;align-items:center;margin:6px 0}
+.dev pre{background:#F6F5F8;border-radius:8px;padding:8px;font-size:11px;max-height:260px;overflow:auto;white-space:pre-wrap}
+.dev .warn{color:var(--muted);font-size:12px;margin-top:8px}
+
+.rm *, .rm *::before, .rm *::after{animation-duration:.001s !important;transition-duration:.001s !important}
+[hidden]{display:none !important}
+.tag-ok{color:var(--ok);font-weight:600} .tag-bad{color:var(--err);font-weight:600}
+
+/* ---------- stepper ---------- */
+.stepper{display:flex;gap:6px;margin:0 0 6px;overflow-x:auto;padding:4px 2px}
+.step{flex:1 1 0;min-width:120px;display:flex;align-items:center;gap:8px;border:1.5px solid var(--pu-m);background:#fff;border-radius:999px;padding:6px 12px 6px 6px;cursor:pointer;min-height:44px;transition:background .2s,border-color .2s}
+.step .num{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--pu-m);color:var(--pu);font-weight:700;font-size:13px;flex:none}
+.step .lbl{font-size:12.5px;font-weight:500;white-space:nowrap}
+.step[aria-current="step"]{border-color:var(--pu2);background:var(--pu-l)}
+.step[aria-current="step"] .num{background:var(--pu2);color:#fff}
+.step.done .num{background:var(--ok);color:#fff}
+.step:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- screen ---------- */
+.screen{display:none}
+.screen.on{display:block;animation:screenIn .45s cubic-bezier(.2,.7,.2,1)}
+@keyframes screenIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.shead{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 14px;margin:10px 0 12px}
+.pill{background:var(--pu2);color:#fff;font-size:12px;font-weight:600;padding:5px 16px;border-radius:999px;letter-spacing:.5px}
+.shead h2{margin:0;font-size:22px;color:var(--pu);letter-spacing:.3px}
+.ssub{grid-column:1/-1;margin:0;color:var(--ink);font-size:17px;font-weight:600}
+.stage{display:grid;grid-template-columns:1.12fr 1fr;gap:18px;align-items:stretch}
+.panel{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;min-height:480px;position:relative;min-width:0}
+.prompt{margin:2px 0 12px;font-size:20px;font-weight:600;line-height:1.35}
+.sub{margin:-4px 0 12px;color:var(--muted);font-size:16px;line-height:1.5}
+.grow{flex:1}
+.actions{display:flex;gap:12px;align-items:center;margin-top:auto;padding-top:16px;flex-wrap:wrap}
+.btn{min-height:44px;padding:8px 22px;border-radius:10px;border:1.5px solid var(--pu2);background:#fff;color:var(--pu);font-weight:600;cursor:pointer;transition:transform .12s,background .2s,box-shadow .2s}
+.btn:hover{background:var(--pu-l)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--pu2);color:#fff}
+.btn.primary:hover{background:var(--pu)}
+.btn[aria-pressed="true"]{background:var(--pu-l);box-shadow:inset 0 0 0 1.5px var(--pu2)}
+.btn[aria-disabled="true"],.btn[aria-disabled="true"]:hover,.btn:disabled{background:var(--grey);border-color:#DAD7E0;color:var(--grey-ink);cursor:not-allowed;box-shadow:none}
+.btn.wide{min-width:150px}
+.btn.sm{min-height:44px;padding:6px 14px;font-size:14px}
+.btn.glow{animation:glow 1.2s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 7px rgba(124,77,204,.22)}}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:2px 0 4px}
+.fb{min-height:52px;border-radius:12px;padding:12px 16px;font-weight:600;display:flex;gap:10px;align-items:center;font-size:16px;margin-top:12px;transition:opacity .25s;opacity:0}
+.fb.show{opacity:1}
+.fb.ok{background:var(--ok-bg);color:var(--ok);border:1px solid #BFE3D0}
+.fb.err{background:var(--err-bg);color:var(--err);border:1px solid #F1C7BE}
+.fb.info{background:var(--info-bg);color:var(--pu);border:1px solid var(--pu-m)}
+.fb .ic{width:24px;height:24px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-size:14px}
+.fb.ok .ic{background:var(--ok)} .fb.err .ic{background:var(--err)} .fb.info .ic{background:var(--pu2)}
+.fb.pop{animation:fbPop .35s}
+@keyframes fbPop{0%{transform:scale(.97)}60%{transform:scale(1.015)}100%{transform:none}}
+.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.note{color:var(--muted);font-size:13px}
+.small-muted{font-size:13px;color:var(--muted)}
+.cap{font-size:12px;font-weight:700;letter-spacing:.5px;border-radius:8px;padding:4px 12px;text-align:center;background:var(--pu-l);color:var(--pu2);border:1px solid var(--pu-m)}
+.reveal{opacity:0;transform:translateY(6px);transition:opacity .4s,transform .4s}
+.reveal.on{opacity:1;transform:none}
+/* ---------- S05 ---------- */
+.lockbar{display:none;background:var(--ok-bg);color:var(--ok);border-radius:10px;padding:10px 14px;font-weight:600;margin-top:10px}
+.locked .lockbar{display:block}
+.stem{font-size:19px;line-height:1.45;margin:2px 0 12px}
+.refans{color:var(--teal);font-size:16px;margin:0}
+.closedmsg{flex:1;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:15px;border:1.5px dashed var(--pu-m);border-radius:12px;padding:20px}
+.scorebig{font-size:40px;font-weight:700;color:var(--pu2);margin:2px 0 10px;line-height:1.1}
+.kbox{background:#F4F3F6;border-radius:12px;padding:12px 16px;font-size:17px;line-height:1.6}
+.k-lbl{font-size:12.5px;font-weight:700;letter-spacing:.5px;color:var(--pu2)}
+.pract{margin-top:14px}
+.pract b{font-size:14px;color:var(--muted)}
+.cmpgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.cmpc{border:1.5px solid var(--pu-m);border-radius:12px;padding:10px 12px;text-align:center;animation:screenIn .4s backwards}
+.cmpc+.cmpc{animation-delay:.12s}
+.cmpc.ok{border-color:var(--ok);background:var(--ok-bg)}
+.cmpc.bad{border-color:#F1C7BE;background:var(--err-bg)}
+.cmpc .k{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.4px}
+.cmpc .v{font-size:16px;font-weight:600;margin:4px 0}
+.cmpc svg{width:64px;height:64px}
+.finish{display:grid;grid-template-columns:110px 1fr;gap:18px;align-items:center}
+.finish img{width:110px;height:auto;animation:popIn .6s cubic-bezier(.3,1.5,.5,1)}
+table.tf{width:100%;border-collapse:collapse;font-size:16px;border:1.5px solid var(--pu-m)}
+table.tf th{background:var(--pu-l);color:var(--pu2);font-weight:600;padding:12px 10px;font-size:15px}
+table.tf th:first-child{text-align:center}
+table.tf td{border-top:1px solid #ECE8F1;padding:6px 14px;height:58px}
+table.tf td+td,table.tf th+th{border-left:1.5px solid var(--pu-m);text-align:center;width:118px}
+table.tf tr{transition:background .25s}
+table.tf tr.ok{background:var(--ok-bg)}
+.rad{display:inline-grid;place-items:center;width:48px;height:48px;cursor:pointer;border-radius:50%}
+.rad input{position:absolute;opacity:0;width:1px;height:1px}
+.rad span{width:24px;height:24px;border-radius:50%;border:2px solid var(--pu2);display:grid;place-items:center;transition:transform .15s}
+.rad span::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--pu2);transform:scale(0);transition:transform .2s cubic-bezier(.3,1.6,.5,1)}
+.rad input:checked+span::after{transform:scale(1)}
+.rad:hover span{transform:scale(1.1)}
+.rad input:focus-visible+span{outline:3px solid var(--focus);outline-offset:3px}
+
+/* ---------- Blok Mainan ---------- */
+.viz3d{min-height:340px}
+.l3.nb.g{background:#2E7D32}
+.l3.gold{background:var(--focus);border-color:#C99700;color:#3a2a00}
+.cap3d{position:absolute;left:10px;top:10px;right:10px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;pointer-events:none;z-index:2}
+.capchip{background:#fff;border:1.5px solid var(--pu-m);color:var(--pu);border-radius:999px;padding:5px 14px;font-weight:600;font-size:14.5px;box-shadow:0 4px 12px rgba(78,36,131,.12);animation:lblIn .35s;max-width:100%}
+.capchip.ok{border-color:#BFE3D0;color:var(--ok);background:var(--ok-bg)}
+.capchip.err{border-color:#F1C7BE;color:var(--err);background:var(--err-bg)}
+.capchip.gold{border-color:#E8C65A;background:#FFF6D6;color:#5B4300}
+.vbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.vbar .btn{flex:1 1 auto}
+.infobar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.infobar .ib-l{font-weight:600;color:var(--pu);font-size:14px}
+.infobar .btn{flex:1 1 auto;min-width:76px}
+.player{margin-top:10px;background:var(--pu-l);border:1.5px solid var(--pu-m);border-radius:14px;padding:8px 10px;animation:screenIn .3s}
+.sp-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.sp-title{font-weight:700;color:var(--pu);font-size:15px}
+.sp-step{font-weight:700;color:var(--pu2);font-size:14px;white-space:nowrap}
+.sp-row{display:flex;gap:8px;align-items:center}
+.spb{width:48px;height:48px;border-radius:12px;border:1.5px solid var(--pu2);background:#fff;color:var(--pu);font-size:24px;font-weight:700;cursor:pointer;flex:none;line-height:1;transition:transform .12s,background .2s}
+.spb:hover{background:var(--pu-l)} .spb:active{transform:scale(.94)}
+.spb.play{width:56px;height:56px;border-radius:50%;background:var(--pu2);color:#fff;font-size:22px;box-shadow:0 4px 12px rgba(78,36,131,.25)}
+.spb.play:hover{background:var(--pu)}
+.spspeed{min-height:44px;border-radius:999px;border:1.5px solid var(--pu-m);background:#fff;color:var(--pu);font-weight:600;font-size:14px;padding:4px 12px;cursor:pointer;white-space:nowrap;flex:none}
+.player input[type=range]{flex:1;min-width:90px;height:44px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer;--p:0%}
+.player input[type=range]::-webkit-slider-runnable-track{height:12px;border-radius:6px;background:linear-gradient(to right,var(--pu2) var(--p),#D9CFEA var(--p))}
+.player input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;margin-top:-9px;border-radius:50%;background:#fff;border:5px solid var(--pu2);box-shadow:0 2px 8px rgba(78,36,131,.3)}
+.player input[type=range]::-moz-range-track{height:12px;border-radius:6px;background:#D9CFEA}
+.player input[type=range]::-moz-range-progress{height:12px;border-radius:6px;background:var(--pu2)}
+.player input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:5px solid var(--pu2)}
+.player input[type=range]:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:8px}
+@media (max-width:480px){.tools{grid-template-columns:1fr}.infobar .ib-l{flex-basis:100%}.sp-row{flex-wrap:wrap}.player input[type=range]{order:5;flex-basis:100%}.spspeed{margin-left:auto}}
+.iconbtn{width:44px;height:44px;border-radius:10px;border:1.5px solid var(--pu2);background:#fff;color:var(--pu);cursor:pointer;font-size:18px;flex:none}
+.iconbtn:hover{background:var(--pu-l)}
+.story{font-size:16.5px;line-height:1.5;margin:0 0 10px}
+.arahan{background:var(--pu-l);border:1px solid var(--pu-m);border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:17px;line-height:1.5}
+.arahan b{display:block;color:var(--pu);margin-bottom:2px;font-size:15px;letter-spacing:.3px}
+.arahan ol{margin:0;padding-left:22px}
+.shapebtns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.shapebtn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 10px;border:2px solid var(--pu-m);border-radius:14px;background:#fff;cursor:pointer;font-weight:700;font-size:19px;color:var(--pu);min-height:44px;transition:background .2s,border-color .2s,box-shadow .25s,transform .15s}
+.shapebtn:hover{background:var(--pu-l)}
+.shapebtn:active{transform:scale(.97)}
+.shapebtn svg{height:58px;width:auto;max-width:100%}
+.shapebtn[aria-pressed="true"]{border-color:var(--pu2);background:var(--pu-l);box-shadow:0 0 0 4px rgba(124,77,204,.2)}
+.infobox{border:1.5px solid var(--pu-m);border-radius:12px;padding:12px 16px;margin-top:14px;background:#FBFAFD;min-height:92px;transition:border-color .3s,background .3s}
+.infobox.open{border-color:#BFE3D0;background:var(--ok-bg)}
+.infobox h4{margin:0 0 4px;font-size:12.5px;letter-spacing:.5px;color:var(--pu2)}
+.infobox.open h4{color:var(--ok)}
+.infobox p{margin:0;font-size:17px;line-height:1.45}
+.infobox .ph{color:var(--muted);font-size:15px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.stat{display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--pu-m);border-radius:999px;padding:4px 12px 4px 4px;font-weight:600;font-size:14.5px;animation:popIn .45s cubic-bezier(.3,1.5,.5,1) both}
+.stat i{font-style:normal;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:13px}
+.stat.f i{background:var(--blue)} .stat.e i{background:var(--green)} .stat.v i{background:var(--pu2)}
+.realobj.sm img{width:64px}
+.legendrow{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+.legendrow span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:16px;height:16px;border-radius:4px;border:1.5px solid #2A2140;display:inline-block}
+.helpbox{background:#FBF2E1;border:1px solid #EBD3A0;border-radius:12px;padding:10px 14px;font-size:15px;line-height:1.55;margin-top:10px}
+.helpbox b{color:var(--amber)}
+.helpbox div{transition:background .25s,padding .25s;border-radius:6px}
+.helpbox div.on{background:#FCE29A;padding:0 6px;font-weight:600}
+.partchips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.partchips .btn{flex:1 1 0;min-width:110px}
+.counter{display:flex;align-items:center;gap:14px;background:#FBFAFD;border:1.5px solid var(--pu-m);border-radius:14px;padding:10px 16px;margin:0 0 12px}
+.counter .k{font-size:16px;font-weight:600}
+.counter .v{font-size:40px;font-weight:700;color:var(--pu2);min-width:60px;text-align:center;line-height:1}
+.bump{animation:bumpA .3s}
+@keyframes bumpA{50%{transform:scale(1.3)}}
+.ansrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:4px 0 6px}
+.numin{width:130px;height:58px;font-size:28px;font-weight:700;text-align:center;border:2px solid var(--pu2);border-radius:12px;color:var(--pu);background:#fff}
+.numin:disabled{background:#F4F3F6;color:var(--muted);border-color:#DAD7E0}
+.numin.shake{border-color:var(--err)}
+.ladder{border:1.5px solid var(--pu-m);border-radius:12px;padding:10px 14px;margin-top:12px}
+.ladder .t{font-size:13px;font-weight:700;letter-spacing:.4px;color:var(--pu2);margin-bottom:6px}
+.ladder ol{margin:0 0 8px;padding-left:20px;font-size:15px;line-height:1.6;color:var(--muted)}
+.ladder li.on{color:var(--ink);font-weight:600}
+.ladder li.on::marker{color:var(--pu2)}
+.think{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.tcard{border:1.5px solid var(--pu-m);border-radius:12px;padding:10px 12px;background:#FBFAFD;font-size:15px;line-height:1.4;font-weight:600;color:var(--pu);opacity:.0;transform:translateY(8px);transition:opacity .45s,transform .45s}
+.tcard.on{opacity:1;transform:none}
+.tcard.final{grid-column:1/-1;background:#FFF6D6;border-color:#E8C65A;color:#5B4300;text-align:center;font-size:17px}
+.think:not(:has(.on)){display:none}
+.clicknote{font-size:13.5px;color:var(--muted);margin:8px 0 0}
+/* S02 / S05 tables */
+table.tf td.code{width:52px;text-align:center;font-weight:700;color:var(--pu2);padding:6px 4px}
+table.tf th.code{width:52px}
+table.tf td.stmt{font-weight:600}
+table.tf td.stmt,table.tf th.stmt{width:auto;text-align:left}
+.stmtbtn{border:0;background:none;padding:6px 10px;margin:-6px -10px;border-radius:8px;cursor:pointer;font-weight:600;text-align:left;color:var(--pu);text-decoration:underline dotted 2px;text-underline-offset:4px;min-height:44px}
+.stmtbtn:hover{background:var(--pu-l)}
+.stmtbtn[aria-pressed="true"]{background:#FCE29A;color:#3a2a00;text-decoration:none}
+table.tf tr.bad{background:var(--err-bg)}
+.rowfb{display:grid;gap:6px;margin-top:10px}
+.rowfb .fb{margin:0;min-height:42px;padding:8px 14px;font-size:15px}
+/* S05 */
+.item{border:1.5px solid var(--pu-m);border-radius:14px;padding:14px 16px;background:#fff}
+.item+.item{margin-top:14px}
+.itag{display:inline-block;background:var(--pu2);color:#fff;font-size:12px;font-weight:700;letter-spacing:.5px;border-radius:999px;padding:3px 12px;margin-bottom:8px}
+.item .stem{font-size:17.5px;margin:0 0 10px}
+.isofig{display:flex;justify-content:center;margin:4px 0 12px}
+.isofig svg{width:100%;height:auto}
+.rules{font-size:13.5px;color:var(--muted);line-height:1.5;margin-top:12px}
+/* S06 */
+.resp{font-size:16.5px;line-height:1.7}
+.resp b{color:var(--pu)}
+.expl{background:var(--pu-l);border:1px solid var(--pu-m);border-radius:12px;padding:12px 16px;font-size:16px;line-height:1.55;margin-top:12px}
+.expl .k-lbl{display:block;margin-bottom:2px}
+.xtabs{display:flex;gap:8px;margin:12px 0 8px;flex-wrap:wrap}
+.xtabs .btn{flex:1 1 0}
+.followbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cmptable{width:100%;border-collapse:collapse;font-size:15px;margin-top:12px;border:1.5px solid var(--pu-m);animation:screenIn .4s}
+.cmptable th{background:var(--pu-l);color:var(--pu2);padding:8px;text-align:left;font-size:13.5px}
+.cmptable td{padding:8px;border-top:1px solid #ECE8F1}
+.cmptable td.ok{color:var(--ok);font-weight:600}
+.cmptable td.bad{color:var(--err);font-weight:600}
+.pbox{border:1.5px dashed var(--pu2);border-radius:14px;padding:12px 14px;margin-top:12px;animation:screenIn .4s}
+.pbox .isofig{margin:6px 0}
+.pbox .isofig svg{max-width:300px}
+.pbox .stem{font-size:16.5px;margin:0 0 6px}
+
+@media (max-width:900px){
+  .stage{grid-template-columns:1fr}
+  .panel{min-height:0}
+}
+@media (max-width:480px){
+  .wrap{padding:10px 10px 80px}
+  .prompt{font-size:18px}
+  .ssub{font-size:15px}
+  .shead h2{font-size:18px}
+  .panel{padding:14px}
+  .devtoggle{padding:0;width:44px;font-size:0}
+  .devtoggle::before{content:"⚙";font-size:18px}
+  .actions{gap:8px}
+  .actions .grow{display:none}
+  .actions .btn{flex:1 1 auto;min-width:0;padding:8px 10px}
+  .viz3d{min-height:300px}
+  .think{grid-template-columns:1fr}
+  .followbtns{grid-template-columns:1fr}
+  .shapebtn{font-size:17px}
+  .capchip{font-size:13px}
+  .finish{grid-template-columns:1fr}
+  table.tf td{padding:6px 6px}
+  table.tf td+td,table.tf th+th{width:64px}
+  table.tf td.code,table.tf th.code{width:40px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="apphead"><svg class="deco" viewBox="0 0 390 130" aria-hidden="true" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"><path d="M20 70 h40 v40 h-40 z M20 70 l20 -16 h40 l-20 16 M60 110 l20 -16 v-40"/><path d="M110 110 h160 v-40 h-160 z M150 70 v40 M190 70 v40 M230 70 v40 M110 70 l20 -16 h160 l-20 16 M270 110 l20 -16 v-40"/><path d="M320 110 h40 v-40 h-40 z M320 70 v-40 h40 v40 M320 30 l20 -16 h40 l-20 16 M360 110 l20 -16 v-80"/></svg><h1>Blok Mainan</h1></header>
+  <nav class="stepper" id="stepper" aria-label="Langkah"></nav>
+
+  <main>
+  <!-- ===================== S01 ===================== -->
+  <section class="screen" id="S01">
+    <div class="shead"><span class="pill">LANGKAH 1</span><h2>KONSEP DAN PENGENALAN</h2><p class="ssub">Kenali kubus dan kuboid</p></div>
+    <div class="stage">
+      <div class="panel">
+        <p class="story">Ling bina bentuk menggunakan blok kecil. Setiap blok kecil ialah <b>kubus</b>. Apabila beberapa kubus dicantumkan, bentuk yang terhasil boleh menjadi <b>kuboid</b>.</p>
+        <div class="viz3d" id="s01viz"><div class="cap3d" id="s01cap"></div><p class="viz-hint">Seret untuk pusing</p></div>
+        <div class="infobar" id="s01inf" role="group" aria-label="Buka maklumat"><span class="ib-l">Buka maklumat:</span><button class="btn sm" data-ip="face" aria-pressed="false">Permukaan rata</button><button class="btn sm" data-ip="edge" aria-pressed="false">Tepi</button><button class="btn sm" data-ip="vert" aria-pressed="false">Bucu</button></div>
+        <div class="player" id="s01player" hidden></div>
+        <div class="vbar">
+          <button class="btn sm" id="s01cmp" aria-pressed="false">Banding 1 blok dan 4 blok</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="arahan"><b>Arahan murid</b><ol><li>Tekan <b style="display:inline">Kubus</b> atau <b style="display:inline">Kuboid</b>.</li><li>Lihat bentuk yang dipilih dan baca penerangan ringkas.</li></ol></div>
+        <div class="shapebtns" role="group" aria-label="Nama bentuk">
+          <button class="shapebtn" id="btn_kubus" aria-pressed="false"><svg viewBox="0 0 80 70" aria-hidden="true" id="icoKubus"></svg>Kubus</button>
+          <button class="shapebtn" id="btn_kuboid" aria-pressed="false"><svg viewBox="0 0 160 70" aria-hidden="true" id="icoKuboid"></svg>Kuboid</button>
+        </div>
+        <div class="infobox" id="info_panel" aria-live="polite"><h4>MAKLUMAT</h4><p class="ph">Tekan nama bentuk untuk membuka maklumat.</p></div>
+        <div class="realobj sm" style="margin-top:14px;align-self:flex-start"><img src="assets/kotak_blok.png" alt="Kotak berisi blok mainan berbentuk kubus" width="64" height="58" onerror="this.remove()"><span>Blok mainan Ling</span></div>
+        <div class="actions"><button class="btn" id="s01reset">Set semula</button><span class="grow"></span><button class="btn primary wide" id="s01next" aria-disabled="true">Seterusnya</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== S02 ===================== -->
+  <section class="screen" id="S02">
+    <div class="shead"><span class="pill">LANGKAH 2</span><h2>ASAS</h2><p class="ssub">Sifat kuboid</p></div>
+    <div class="stage">
+      <div class="panel">
+        <p class="story">Klik label untuk menyerlahkan bahagian berkaitan pada kuboid.</p>
+        <div class="viz3d" id="s02viz"><div class="cap3d" id="s02cap"></div><p class="viz-hint">Seret untuk pusing</p></div>
+        <div class="partchips" role="group" aria-label="Label bahagian kuboid">
+          <button class="btn sm" data-part="face" aria-pressed="false">Permukaan rata</button>
+          <button class="btn sm" data-part="vert" aria-pressed="false">Bucu</button>
+          <button class="btn sm" data-part="edge" aria-pressed="false">Tepi</button>
+        </div>
+        <div class="player" id="s02player" hidden></div>
+        <div class="helpbox" id="s02help"><b>Contoh bantuan:</b><div data-part="face">permukaan rata = bahagian rata</div><div data-part="vert">bucu = titik pertemuan tepi</div><div data-part="edge">tepi = garisan sempadan permukaan rata</div></div>
+      </div>
+      <div class="panel">
+        <div class="arahan"><b>Arahan murid</b>Klik label, kemudian tandakan Benar atau Palsu.</div>
+        <div id="s02table"></div>
+        <div class="rowfb" id="s02rows" aria-live="polite"></div>
+        <div class="fb" id="s02fb" aria-live="polite"></div>
+        <div class="actions"><button class="btn" id="s02reset">Set semula</button><button class="btn" id="s02check" aria-disabled="true">Semak</button><span class="grow"></span><button class="btn primary wide" id="s02next" aria-disabled="true">Seterusnya</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== S03 ===================== -->
+  <section class="screen" id="S03">
+    <div class="shead"><span class="pill">LANGKAH 3</span><h2>PERTENGAHAN</h2><p class="ssub">Permukaan rata kecil yang terdedah</p></div>
+    <div class="stage">
+      <div class="panel">
+        <p class="story">Permukaan rata yang bercantum di tengah <b>tidak dikira</b> kerana tidak kelihatan. Kira juga tapak bawah.</p>
+        <div class="viz3d" id="s03viz"><div class="cap3d" id="s03cap"></div><p class="viz-hint">Seret untuk pusing · Klik permukaan rata untuk warnakan</p></div>
+        <div class="player" id="s03player" hidden></div>
+        <div class="vbar">
+          <button class="iconbtn" id="s03replay" aria-label="Main semula cantuman">↻</button>
+          <button class="btn sm" id="s03top">Pandangan atas</button>
+          <button class="btn sm" id="s03bottom">Pandangan bawah</button>
+        </div>
+        <div class="legendrow"><span><i class="sw" style="background:#4FAE3F"></i>Belum dipilih</span><span><i class="sw" style="background:#FFD54F"></i>Dipilih</span><span><i class="sw" style="background:#EF7B6C"></i>Bercantum (tidak dikira)</span></div>
+      </div>
+      <div class="panel">
+        <div class="arahan"><b>Arahan murid</b>Pilih semua permukaan rata kecil yang masih terdedah.</div>
+        <div class="counter"><span class="k">Kiraan semasa:</span><span class="v" id="s03count" aria-live="polite">0</span></div>
+        <div class="tools">
+          <button class="btn" id="help_hidden" aria-pressed="false">Tunjuk permukaan rata tersembunyi</button>
+          <button class="btn" id="s03clear">Set semula warna</button>
+          <button class="btn" id="s03example">Lihat Jawapan Contoh</button>
+        </div>
+        <div class="fb" id="s03fb" aria-live="polite"></div>
+        <div class="actions"><button class="btn" id="s03reset">Set semula</button><span class="grow"></span><button class="btn primary wide" id="s03next" aria-disabled="true">Seterusnya</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== S04 ===================== -->
+  <section class="screen" id="S04">
+    <div class="shead"><span class="pill">LANGKAH 4</span><h2>LANJUTAN</h2><p class="ssub">Bentuk 5 kubus</p></div>
+    <div class="stage">
+      <div class="panel">
+        <p class="story">Ling menambah 1 blok di atas blok pertama. Kini terdapat <b>5 kubus</b>.</p>
+        <div class="viz3d" id="s04viz"><div class="cap3d" id="s04cap"></div><p class="viz-hint">Seret untuk pusing</p></div>
+        <div class="player" id="s04player" hidden></div>
+        <div class="vbar">
+          <button class="iconbtn" id="s04replay" aria-label="Main semula blok jatuh">↻</button>
+          <button class="btn sm" id="s04top">Pandangan atas</button>
+          <button class="btn sm" id="s04bottom">Pandangan bawah</button>
+        </div>
+        <div class="think" id="s04think">
+          <div class="tcard" id="s04t1">Langkah fikir: jumlah semua permukaan rata 5 x 6 = 30</div>
+          <div class="tcard" id="s04t2">Tolak permukaan rata bercantum: 4 cantuman x 2 = 8</div>
+          <div class="tcard final" id="s04t3">Jumlah permukaan rata terdedah = 30 - 8 = 22</div>
+        </div>
+        <p class="clicknote" id="s04note" hidden>Murid juga boleh klik permukaan rata kecil satu demi satu. Kiraan disemak dengan kaedah tolak permukaan rata bercantum.</p>
+      </div>
+      <div class="panel">
+        <div class="arahan"><b>Arahan murid</b>Kira jumlah permukaan rata kecil yang terdedah. Taip jawapan kamu.</div>
+        <div class="ansrow"><input class="numin" id="s04in" inputmode="numeric" autocomplete="off" maxlength="3" aria-label="Jumlah permukaan rata kecil yang terdedah"><button class="btn primary wide" id="s04check" aria-disabled="true">Semak</button></div>
+        <div class="counter" id="s04ctr" hidden><span class="k">Kiraan semasa:</span><span class="v" id="s04count" aria-live="polite">0</span></div>
+        <div class="fb" id="s04fb" aria-live="polite"></div>
+        <div class="ladder"><div class="t">BANTUAN BERTINGKAT</div><ol id="s04ladder"><li>Tunjuk bilangan cantuman blok.</li><li>Tunjuk pengiraan 5 x 6 - 8.</li></ol><button class="btn sm" id="s04help">Bantuan 1</button></div>
+        <div class="actions"><button class="btn" id="s04reset">Set semula</button><button class="btn" id="s04click" aria-pressed="false">Cuba kaedah klik permukaan rata</button><span class="grow"></span><button class="btn primary wide" id="s04next" aria-disabled="true">Seterusnya</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== S05 ===================== -->
+  <section class="screen" id="S05">
+    <div class="shead"><span class="pill">LANGKAH 5</span><h2>REFLEKSI / ITEM AKHIR</h2><p class="ssub">Jawab item secara kendiri</p></div>
+    <div class="stage" id="s05root">
+      <div class="panel">
+        <div class="item">
+          <span class="itag">ITEM 1</span>
+          <p class="stem">Ling mencantum 4 blok untuk membentuk kuboid. Pilih Benar atau Palsu bagi setiap sifat.</p>
+          <div class="isofig"><svg id="s05fig1" role="img" aria-label="Empat blok kubus dicantumkan dalam satu baris membentuk kuboid" style="max-width:320px"></svg></div>
+          <div id="s05table"></div>
+        </div>
+        <div class="item">
+          <span class="itag">ITEM 2</span>
+          <p class="stem">Ling menambah 1 blok di atas blok pertama. Berapakah jumlah permukaan rata kecil bentuk sekarang?</p>
+          <div class="isofig"><svg id="s05fig2" role="img" aria-label="Lima blok kubus: empat dalam satu baris dan satu di atas blok pertama" style="max-width:320px"></svg></div>
+          <div class="ansrow"><input class="numin" id="s05num" inputmode="numeric" autocomplete="off" maxlength="3" aria-label="Jawapan Item 2"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="arahan"><b>Arahan murid</b><ol><li>Lengkapkan jadual Item 1.</li><li>Taip jawapan Item 2.</li><li>Tekan Hantar apabila selesai.</li></ol></div>
+        <div class="lockbar">✓ Respons kamu telah dihantar. Skrin ini kini baca sahaja.</div>
+        <div class="fb" id="s05fb" aria-live="polite"></div>
+        <div class="actions"><button class="btn wide" id="s05reset">Set semula</button><span class="grow"></span><button class="btn primary wide" id="s05submit" aria-disabled="true">Hantar</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== S06 ===================== -->
+  <section class="screen" id="S06">
+    <div class="shead"><span class="pill">LANGKAH 6</span><h2>RUMUSAN PRESTASI</h2><p class="ssub">Semak jawapan dan fahami sebabnya</p></div>
+    <div class="stage">
+      <div class="panel">
+        <div class="k-lbl">SKOR ITEM KENDIRI</div>
+        <div class="scorebig" id="s06score">Menunggu rekod respons</div>
+        <div class="kbox resp" id="s06resp"></div>
+        <div class="expl"><span class="k-lbl">PENERANGAN RINGKAS</span>Kuboid mempunyai 6 permukaan rata, 8 bucu dan 12 tepi. Bentuk 5 kubus itu mempunyai 22 permukaan rata kecil terdedah kerana 4 cantuman menutup 8 permukaan rata.</div>
+        <div id="s06x" hidden>
+          <div class="xtabs" role="group" aria-label="Langkah fikir"><button class="btn sm" data-x="1" aria-pressed="true">Item 1 · Sifat kuboid</button><button class="btn sm" data-x="2" aria-pressed="false">Item 2 · Permukaan rata terdedah</button></div>
+          <div class="viz3d" id="s06viz"><div class="cap3d" id="s06cap"></div><p class="viz-hint">Seret untuk pusing</p></div>
+          <div class="player" id="s06player" hidden></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="followbtns">
+          <button class="btn" id="btn_explain" aria-pressed="false">Lihat penerangan</button>
+          <button class="btn" id="btn_compare" aria-pressed="false">Banding respons</button>
+          <button class="btn" id="btn_practice" aria-pressed="false">Latihan pengukuhan</button>
+          <button class="btn" id="btn_retry">Cuba semula latihan</button>
+        </div>
+        <div id="s06cmp" hidden></div>
+        <div id="s06prac" hidden></div>
+        <p class="rules">Respons pertama bagi item kendiri kekal disimpan. Latihan semula dan bantuan selepas itu tidak menimpa rekod asal.</p>
+        <div class="pract"><b>Latihan Langkah 1–4 (rekod berasingan)</b><div class="small-muted" id="s06train">–</div></div>
+        <div class="actions"><span class="grow"></span><button class="btn primary wide" id="s06done" aria-disabled="true">Tamat</button></div>
+      </div>
+    </div>
+  </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="box" id="modalBox"></div></div>
+
+<button class="devtoggle" id="devToggle" aria-expanded="false">⚙ Nota pembangun</button>
+<aside class="dev" id="dev" aria-label="Panel pembangun">
+  <h4>Panel pembangun (bukan paparan murid)</h4>
+  <div class="jump" id="devJump"></div>
+  <label><input type="checkbox" id="devFail"> Simulasi gagal hantar (S05)</label>
+  <label><input type="checkbox" id="devRM"> Mod gerakan minimum</label>
+  <label><input type="checkbox" id="devSound" checked> Bunyi ketukan blok</label>
+  <label><input type="checkbox" id="devSVG"> Paksa sandaran SVG (muat semula)</label>
+  <button class="btn" id="devClear" style="min-height:36px;padding:4px 12px;margin:6px 0">Padam data hantaran &amp; muat semula</button>
+  <p class="warn" id="devRenderer"></p>
+  <h4 style="margin-top:10px">Log peristiwa (terkini di atas)</h4>
+  <pre id="devLog"></pre>
+  <p class="warn">Prototaip: hantaran disimpan dalam localStorage pelayar ini sahaja. Skema cadangan: 1A Benar, 1B Palsu, 1C Benar; Item 2 = 22. Penskoran prototaip: Item 1 = 1 markah (ketiga-tiga baris betul), Item 2 = 1 markah → jumlah 2.</p>
+</aside>
+
+<script>
+/* =========================================================
+   Utilities
+   ========================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const NS = 'http://www.w3.org/2000/svg';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+document.body.classList.toggle('rm', reducedMotion);
+const FORCE_SVG = new URLSearchParams(location.search).has('svg');
+
+function svgEl(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const clamp01 = t => Math.max(0, Math.min(1, t));
+
+function say(el, kind, text) {
+  const ic = { ok: '✓', err: '!', info: 'i' }[kind] || '';
+  el.className = 'fb';
+  if (!text) { el.innerHTML = ''; return; }
+  el.innerHTML = `<span class="ic" aria-hidden="true">${ic}</span><span>${text}</span>`;
+  void el.offsetWidth;
+  el.className = `fb show pop ${kind}`;
+}
+function setEnabled(btn, on) { btn.setAttribute('aria-disabled', on ? 'false' : 'true'); }
+const isEnabled = btn => btn.getAttribute('aria-disabled') !== 'true';
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2400); }
+function shake(el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+function fmtMs(ms) { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; }
+
+function confetti() {
+  if (reducedMotion) return;
+  const c = document.createElement('canvas'); c.id = 'confetti';
+  c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio;
+  document.body.appendChild(c);
+  const x = c.getContext('2d'); x.scale(devicePixelRatio, devicePixelRatio);
+  const cols = ['#7C4DCC', '#F2B705', '#4FAE3F', '#8ED66B', '#7DD36B', '#FFD54F'];
+  const P = Array.from({ length: 140 }, () => ({
+    x: innerWidth / 2 + (Math.random() - .5) * 200, y: innerHeight * .35,
+    vx: (Math.random() - .5) * 14, vy: -Math.random() * 12 - 4, s: 5 + Math.random() * 6,
+    r: Math.random() * 6, vr: (Math.random() - .5) * .4, c: cols[(Math.random() * cols.length) | 0], n: Math.random() < .6 ? 3 : 4
+  }));
+  const t0 = performance.now();
+  (function f(now) {
+    const k = (now - t0) / 1800;
+    x.clearRect(0, 0, innerWidth, innerHeight);
+    for (const p of P) {
+      p.vy += .35; p.x += p.vx; p.y += p.vy; p.vx *= .99; p.r += p.vr;
+      x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.globalAlpha = Math.max(0, 1 - k * k); x.fillStyle = p.c;
+      // little squares: the faces of the toy blocks
+      x.beginPath(); x.rect(-p.s * .8, -p.s * .8, p.s * 1.6, p.s * 1.6); x.fill(); x.restore();
+    }
+    if (k < 1) requestAnimationFrame(f); else c.remove();
+  })(t0);
+}
+
+/* =========================================================
+   Logging + active time (paused while tab hidden)
+   ========================================================= */
+const LOG = [];
+const attempts = {}, helps = {};
+const T = { cur: null, since: 0, ms: {} };
+function timerStart(id) { timerPause(); T.cur = id; T.since = performance.now(); }
+function timerPause() { if (T.cur && T.since) T.ms[T.cur] = (T.ms[T.cur] || 0) + performance.now() - T.since; T.since = 0; }
+function activeMs(id) { let m = T.ms[id] || 0; if (T.cur === id && T.since) m += performance.now() - T.since; return Math.round(m); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) timerPause(); else if (T.cur) T.since = performance.now(); });
+function log(screen_id, event, value = null) {
+  LOG.push({ screen_id, event, value, attempt_id: `${screen_id}-${attempts[screen_id] || 0}`, help_count: helps[screen_id] || 0, active_ms: activeMs(screen_id), t: new Date().toISOString() });
+  if ($('#dev').classList.contains('show')) renderDevLog();
+}
+const newAttempt = id => (attempts[id] = (attempts[id] || 0) + 1);
+const addHelp = id => (helps[id] = (helps[id] || 0) + 1);
+
+/* =========================================================
+   View3D — one small three.js stage used by every screen.
+   Faces / edges / vertices, orbit drag, hidden edges drawn
+   dashed (second pass with GreaterDepth), screen-space picking
+   with priority bucu > tepi > permukaan, HTML labels, focusable
+   proxies for keyboard users, and an SVG renderer fallback
+   (three.js still does the maths) when WebGL is missing.
+   ========================================================= */
+let THREEP = null;
+function loadThree() {
+  return THREEP ||= Promise.all([import('three'), import('three/addons/lines/LineSegments2.js'), import('three/addons/lines/LineSegmentsGeometry.js'), import('three/addons/lines/LineMaterial.js')])
+    .then(([T, a, b, c]) => ({ T, LineSegments2: a.LineSegments2, LineSegmentsGeometry: b.LineSegmentsGeometry, LineMaterial: c.LineMaterial }));
+}
+function hasWebGL() { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } }
+let RENDERER_KIND = '';
+
+async function View3D(host, o = {}) {
+  const { T, LineSegments2, LineSegmentsGeometry, LineMaterial } = await loadThree();
+  const gl = !FORCE_SVG && hasWebGL();
+  RENDERER_KIND = gl ? 'WebGL (three.js)' : 'Sandaran SVG';
+  const scene = new T.Scene(), camera = new T.PerspectiveCamera(28, 1, .1, 200);
+  const root = new T.Group(), content = new T.Group(); scene.add(root); root.add(content);
+  const LIGHT = new T.Vector3(.35, .85, .55).normalize();
+  let renderer = null, svg = null;
+  if (gl) {
+    renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    host.prepend(renderer.domElement);
+    scene.add(new T.HemisphereLight(0xffffff, 0xd9d2e6, 2.2), new T.AmbientLight(0xffffff, .7));
+    const key = new T.DirectionalLight(0xffffff, 1.5); key.position.copy(LIGHT).multiplyScalar(10); scene.add(key);
+  } else { svg = svgEl('svg', { class: 'fallback' }); host.prepend(svg); }
+  const surf = gl ? renderer.domElement : svg;
+  surf.setAttribute('role', 'img'); surf.setAttribute('aria-label', o.label || 'Model tiga dimensi');
+  const ov = document.createElement('div'); ov.className = 'ov'; host.appendChild(ov);
+
+  const faces = new Map(), edges = new Map(), verts = new Map(), lineMats = [];
+  const S = { yaw: o.yaw ?? 0, pitch: o.pitch ?? .3, fit: o.fit ?? 2.6 }, Vw = { ...S };
+  let pickCfg = { faces: true, edges: true, verts: true, occlude: true };
+  const H = {};
+  let W = 1, Hh = 1, running = false, drag = null, lastInput = -1e9, hover = null;
+
+  // ---------- primitives ----------
+  function face(id, pts, { parent = content, color = '#EEE8F7', opacity = 1, pick = true } = {}) {
+    const P = pts.map(p => new T.Vector3(...p)), c = P.reduce((a, p) => a.add(p), new T.Vector3()).multiplyScalar(1 / P.length);
+    const arr = []; for (let i = 1; i < P.length - 1; i++) [P[0], P[i], P[i + 1]].forEach(p => arr.push(p.x - c.x, p.y - c.y, p.z - c.z));
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(arr, 3)); g.computeVertexNormals();
+    const mat = new T.MeshStandardMaterial({ color, roughness: .85, side: T.DoubleSide, transparent: true, opacity, polygonOffset: true, polygonOffsetFactor: 1.5, polygonOffsetUnits: 2 });
+    const m = new T.Mesh(g, mat); m.position.copy(c); parent.add(m);
+    const f = { id, kind: 'face', m, mat, P, c, base: color, color: new T.Color(color), opacity, pick, glow: 0, emissive: new T.Color('#7C4DCC') };
+    faces.set(id, f); return f;
+  }
+  function edge(id, a, b, { parent = content, color = '#2A2140', width = 3, hidden = 'none', pick = true } = {}) {
+    const A = new T.Vector3(...a), B = new T.Vector3(...b);
+    const e = { id, kind: 'edge', A, B, parent, base: color, color: new T.Color(color), width, baseWidth: width, hidden, pick, show: true };
+    if (gl) {
+      const geo = new LineSegmentsGeometry().setPositions([A.x, A.y, A.z, B.x, B.y, B.z]);
+      e.vm = new LineMaterial({ color, linewidth: width, transparent: true, depthWrite: false });
+      e.hm = new LineMaterial({ color, linewidth: Math.max(1.6, width * .7), dashed: true, dashSize: .1, gapSize: .08, transparent: true, opacity: .8, depthWrite: false, depthFunc: T.GreaterDepth });
+      e.vis = new LineSegments2(geo, e.vm); e.vis.renderOrder = 5; parent.add(e.vis);
+      e.hid = new LineSegments2(geo, e.hm); e.hid.computeLineDistances(); e.hid.renderOrder = 6; e.hid.visible = hidden === 'dash'; parent.add(e.hid);
+      lineMats.push(e.vm, e.hm); e.vm.resolution.set(W, Hh); e.hm.resolution.set(W, Hh);
+    }
+    edges.set(id, e); return e;
+  }
+  const sph = new T.SphereGeometry(1, 24, 14);
+  function vert(id, p, { parent = content, color = '#4E2483', r = .08, show = true, pick = true, through = false } = {}) {
+    const mat = new T.MeshStandardMaterial({ color, roughness: .35, transparent: true, depthTest: !through });
+    const m = new T.Mesh(sph, mat); m.position.set(...p); m.scale.setScalar(r); m.visible = show; m.renderOrder = 8; parent.add(m);
+    const v = { id, kind: 'vert', m, mat, P: new T.Vector3(...p), parent, base: color, r, pick, through, hiddenNow: false };
+    verts.set(id, v); return v;
+  }
+  function group(parent = content) { const g = new T.Group(); parent.add(g); return g; }
+
+  // ---------- styling ----------
+  function setFace(id, s) {
+    const f = faces.get(id); if (!f) return;
+    if (s.color) f.color.set(s.color); if (s.opacity != null) f.opacity = s.opacity; if (s.glow != null) f.glow = s.glow; if (s.emissive) f.emissive.set(s.emissive);
+    f.mat.color.copy(f.color); f.mat.opacity = f.opacity; f.mat.emissive.copy(f.emissive).multiplyScalar(f.glow);
+    f.m.visible = f.opacity > .005;
+  }
+  function setEdge(id, s) {
+    const e = edges.get(id); if (!e) return;
+    if (s.color) e.color.set(s.color); if (s.width != null) e.width = s.width; if (s.hidden) e.hidden = s.hidden; if (s.show != null) e.show = s.show;
+    if (gl) { e.vm.color.copy(e.color); e.hm.color.copy(e.color); e.vm.linewidth = e.width; e.hm.linewidth = Math.max(1.6, e.width * .7); e.vis.visible = e.show; e.hid.visible = e.show && e.hidden === 'dash'; }
+  }
+  function setVert(id, s) {
+    const v = verts.get(id); if (!v) return;
+    if (s.color) v.mat.color.set(s.color); if (s.r != null) { v.r = s.r; v.m.scale.setScalar(s.r); } if (s.show != null) v.m.visible = s.show;
+  }
+
+  // ---------- projection / occlusion ----------
+  const ray = new T.Raycaster(), tmp = new T.Vector3();
+  const world = (P, parent) => P.clone().applyMatrix4(parent.matrixWorld);
+  const edgeW = e => [world(e.A, e.parent), world(e.B, e.parent)];
+  const vertW = v => world(v.P, v.parent);
+  const faceW = f => f.m.getWorldPosition(new T.Vector3());
+  function proj(w) { tmp.copy(w).project(camera); return { x: (tmp.x + 1) / 2 * W, y: (1 - tmp.y) / 2 * Hh, z: tmp.z }; }
+  function occluded(w, ignore) {
+    const cp = camera.position, dir = w.clone().sub(cp), d = dir.length();
+    ray.set(cp, dir.normalize()); ray.far = d;
+    const meshes = []; for (const f of faces.values()) if (f.m.visible && f.opacity > .05 && f !== ignore && visibleChain(f.m)) meshes.push(f.m);
+    const hit = ray.intersectObjects(meshes, false)[0];
+    return !!hit && hit.distance < d - .035;
+  }
+  function visibleChain(o) { for (; o; o = o.parent) if (!o.visible) return false; return true; }
+  function segDist(p, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
+    const t = clamp01(((p.x - a.x) * dx + (p.y - a.y) * dy) / L2);
+    return { d: Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy), t };
+  }
+  function pickAt(cx, cy) {
+    const r = surf.getBoundingClientRect(), p = { x: cx - r.left, y: cy - r.top };
+    scene.updateMatrixWorld();
+    if (pickCfg.verts) {
+      let best = null;
+      for (const v of verts.values()) {
+        if (!v.pick) continue; const w = vertW(v), s = proj(w), d = Math.hypot(s.x - p.x, s.y - p.y);
+        if (d < 22 && (!best || d < best.d) && !(pickCfg.occlude && occluded(w))) best = { d, v };
+      }
+      if (best) return { kind: 'vert', id: best.v.id };
+    }
+    if (pickCfg.edges) {
+      let best = null;
+      for (const e of edges.values()) {
+        if (!e.pick || !e.show) continue; const [A, B] = edgeW(e), sd = segDist(p, proj(A), proj(B));
+        if (sd.d < 14 && (!best || sd.d < best.d) && !(pickCfg.occlude && occluded(A.clone().lerp(B, sd.t)))) best = { d: sd.d, e };
+      }
+      if (best) return { kind: 'edge', id: best.e.id };
+    }
+    if (pickCfg.faces) {
+      const ndc = new T.Vector2(p.x / W * 2 - 1, -(p.y / Hh) * 2 + 1); ray.setFromCamera(ndc, camera); ray.far = Infinity;
+      const ms = [...faces.values()].filter(f => f.m.visible && visibleChain(f.m)).map(f => f.m);
+      const hit = ray.intersectObjects(ms, false)[0];
+      if (hit) { const f = [...faces.values()].find(f => f.m === hit.object); if (f.pick) return { kind: 'face', id: f.id }; }
+    }
+    return null;
+  }
+
+  // ---------- labels + keyboard proxies ----------
+  const labels = new Map(), proxies = [];
+  function label(key, html, at, cls = '') {
+    let l = labels.get(key);
+    if (!l) { l = { el: document.createElement('div') }; ov.appendChild(l.el); labels.set(key, l); }
+    if (l.html !== html || l.cls !== cls) { l.el.className = 'l3 ' + cls; l.el.innerHTML = `<span class="in">${html}</span>`; l.html = html; l.cls = cls; }
+    l.at = at; return l;
+  }
+  function unlabel(key) { const l = labels.get(key); if (l) { l.el.remove(); labels.delete(key); } }
+  function clearLabels(prefix = '') { for (const k of [...labels.keys()]) if (k.startsWith(prefix)) unlabel(k); }
+  const at = {
+    face: (id, off = [0, 0, 0]) => () => faceW(faces.get(id)).add(new T.Vector3(...off)),
+    edge: (id, t = .5) => () => { const [A, B] = edgeW(edges.get(id)); return A.lerp(B, t); },
+    vert: (id, out = 0) => () => {
+      const v = verts.get(id), w = vertW(v); if (!out) return w;
+      const c = content.getWorldPosition(new T.Vector3()); return w.add(w.clone().sub(c).normalize().multiplyScalar(out));
+    },
+    point: p => () => world(new T.Vector3(...p), content)
+  };
+  function proxy(kind, id, aria) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'proxy'; b.setAttribute('aria-label', aria);
+    b.addEventListener('click', () => H.pick?.({ kind, id, via: 'keyboard' }));
+    b.addEventListener('focus', () => H.hover?.({ kind, id })); b.addEventListener('blur', () => H.hover?.(null));
+    ov.appendChild(b); proxies.push({ b, kind, id });
+  }
+  function syncProxies() { for (const p of proxies) { const on = pickCfg[p.kind === 'vert' ? 'verts' : p.kind + 's']; p.b.tabIndex = on ? 0 : -1; p.b.style.display = on ? '' : 'none'; } }
+  function placeOverlay() {
+    for (const l of labels.values()) {
+      const s = proj(l.at()), w = l.el.offsetWidth / 2 + 2, h = l.el.offsetHeight / 2 + 2;
+      l.el.style.transform = `translate(${Math.max(w, Math.min(W - w, s.x))}px,${Math.max(h, Math.min(Hh - h, s.y))}px) translate(-50%,-50%)`;
+    }
+    for (const p of proxies) {
+      if (p.b.style.display === 'none') continue;
+      const w = p.kind === 'face' ? faceW(faces.get(p.id)) : p.kind === 'edge' ? at.edge(p.id)() : vertW(verts.get(p.id));
+      const s = proj(w); p.b.style.transform = `translate(${s.x}px,${s.y}px)`;
+    }
+  }
+
+  // ---------- input ----------
+  surf.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw: S.yaw, pitch: S.pitch, moved: false }; lastInput = performance.now(); });
+  surf.addEventListener('pointermove', e => {
+    if (drag) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (Math.hypot(dx, dy) > 6) drag.moved = true;
+      if (drag.moved && o.orbit !== false) {
+        S.yaw = Vw.yaw = drag.yaw + dx * .009; S.pitch = Vw.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * .007));
+        lastInput = performance.now(); surf.style.cursor = 'grabbing'; return;
+      }
+    }
+    const u = pickAt(e.clientX, e.clientY), k = u ? u.kind + u.id : null;
+    if (k !== hover) { hover = k; H.hover?.(u); surf.style.cursor = u ? 'pointer' : 'grab'; }
+  });
+  addEventListener('pointerup', e => {
+    if (!drag) return; const d = drag; drag = null; surf.style.cursor = 'grab';
+    if (d.moved) { H.rotate?.({ yaw: +S.yaw.toFixed(2), pitch: +S.pitch.toFixed(2) }); return; }
+    if (!surf.contains(e.target)) return;
+    H.pick?.({ ...(pickAt(e.clientX, e.clientY) || { kind: 'none' }), via: 'pointer' });
+  });
+  surf.addEventListener('pointerleave', () => { if (hover) { hover = null; H.hover?.(null); } });
+
+  // ---------- sizing ----------
+  function resize() {
+    W = host.clientWidth || 1; Hh = host.clientHeight || 1;
+    if (gl) { renderer.setSize(W, Hh, false); lineMats.forEach(m => m.resolution.set(W, Hh)); }
+    camera.aspect = W / Hh; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(host); resize();
+
+  // ---------- SVG fallback renderer ----------
+  const shadeCol = new T.Color();
+  function drawSVG() {
+    svg.setAttribute('viewBox', `0 0 ${W} ${Hh}`);
+    const fl = [];
+    for (const f of faces.values()) {
+      if (!f.m.visible || !visibleChain(f.m)) continue;
+      const pts = f.P.map(p => p.clone().sub(f.c).applyMatrix4(f.m.matrixWorld));
+      const n = pts[1].clone().sub(pts[0]).cross(pts[2].clone().sub(pts[0])).normalize();
+      const cw = f.m.getWorldPosition(new T.Vector3()), toCam = camera.position.clone().sub(cw);
+      if (n.dot(toCam) < 0) n.negate();
+      const lam = Math.max(0, n.dot(LIGHT));
+      shadeCol.copy(f.color).multiplyScalar(.8 + .25 * lam).lerp(f.emissive, f.glow * .5);
+      fl.push({ d: toCam.length(), s: `<polygon points="${pts.map(p => { const q = proj(p); return q.x.toFixed(1) + ',' + q.y.toFixed(1); }).join(' ')}" fill="#${shadeCol.getHexString()}" fill-opacity="${f.opacity}"/>` });
+    }
+    fl.sort((a, b) => b.d - a.d);
+    let out = fl.map(x => x.s).join('');
+    for (const e of edges.values()) {
+      if (!e.show || !visibleChain(e.parent)) continue;
+      const [A, B] = edgeW(e), hid = occluded(A.clone().lerp(B, .5));
+      if (hid && e.hidden !== 'dash') continue;
+      const a = proj(A), b = proj(B);
+      out += `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#${e.color.getHexString()}" stroke-width="${hid ? Math.max(1.6, e.width * .7) : e.width}" stroke-linecap="round" ${hid ? 'stroke-dasharray="6 5" stroke-opacity=".8"' : ''}/>`;
+    }
+    for (const v of verts.values()) {
+      if (!v.m.visible || !visibleChain(v.parent)) continue;
+      const w = vertW(v), s = proj(w), s2 = proj(w.clone().add(new T.Vector3(0, v.r, 0)));
+      out += `<circle cx="${s.x.toFixed(1)}" cy="${s.y.toFixed(1)}" r="${Math.max(3, Math.abs(s.y - s2.y)).toFixed(1)}" fill="#${v.mat.color.getHexString()}" fill-opacity="${v.mat.opacity}"/>`;
+    }
+    svg.innerHTML = out;
+  }
+
+  // ---------- loop ----------
+  const tweens = [];
+  function tween(ms, fn) { return new Promise(res => tweens.push({ t0: performance.now(), ms, fn, res })); }
+  function frame(now) {
+    if (!running) return; requestAnimationFrame(frame);
+    const k = reducedMotion ? 1 : .12;
+    Vw.yaw += (S.yaw - Vw.yaw) * k; Vw.pitch += (S.pitch - Vw.pitch) * k; Vw.fit += (S.fit - Vw.fit) * k;
+    const sway = o.sway && !reducedMotion && !drag && now - lastInput > 2500 ? Math.sin(now / 1700) * .07 : 0;
+    root.rotation.set(Vw.pitch, Vw.yaw + sway, 0);
+    const tanV = Math.tan(camera.fov * Math.PI / 360), dist = Math.max(Vw.fit / tanV, Vw.fit / (tanV * camera.aspect)) * 1.08;
+    camera.position.set(0, 0, dist); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
+    for (let i = tweens.length - 1; i >= 0; i--) {
+      const tw = tweens[i], p = reducedMotion ? 1 : Math.min(1, (now - tw.t0) / tw.ms); tw.fn(p);
+      if (p >= 1) { tweens.splice(i, 1); tw.res(); }
+    }
+    o.onFrame?.(now);
+    scene.updateMatrixWorld();
+    for (const v of verts.values()) if (v.through && v.m.visible) { const hid = occluded(vertW(v)); v.hiddenNow = hid; v.mat.opacity = hid ? .45 : 1; }
+    for (const l of labels.values()) if (l.dimIfHidden) l.el.classList.toggle(l.dimCls || 'hidden-dim', occluded(l.dimIfHidden()));
+    if (gl) renderer.render(scene, camera); else drawSVG();
+    placeOverlay();
+  }
+
+  return {
+    T, gl, scene, root, content, camera, faces, edges, verts, at, host, surf,
+    face, edge, vert, group, setFace, setEdge, setVert, label, unlabel, clearLabels, proxy, tween, occluded,
+    on(ev, fn) { H[ev] = fn; },
+    setPick(c) { pickCfg = { ...pickCfg, ...c }; syncProxies(); },
+    view(v, instant) { Object.assign(S, v); if (instant) Object.assign(Vw, S); },
+    get state() { return { ...S }; },
+    // client coordinates of a face / edge / vertex anchor (used by automated tests)
+    screenOf(kind, id) {
+      scene.updateMatrixWorld(); const r = surf.getBoundingClientRect();
+      const w = kind === 'face' ? faceW(faces.get(id)) : kind === 'edge' ? at.edge(id)() : vertW(verts.get(id));
+      const s = proj(w); return { x: r.left + s.x, y: r.top + s.y, hidden: occluded(w) };
+    },
+    start() { if (!running) { running = true; resize(); requestAnimationFrame(frame); } },
+    stop() { running = false; }
+  };
+}
+async function mountView(host, o) {
+  host.insertAdjacentHTML('beforeend', '<div class="loading">Memuatkan model 3D…</div>');
+  try { return await View3D(host, o); }
+  catch (err) { console.warn(err); host.querySelector('.loading').textContent = 'Model 3D tidak dapat dimuatkan. Semak sambungan internet.'; return null; }
+  finally { host.querySelector('.loading')?.remove(); }
+}
+function makeLazy(host, opts, build) {
+  let V = null, p = null;
+  return {
+    get V() { return V; },
+    async ready() { if (!p) p = mountView(host, opts).then(v => { V = v; if (v) { build(v); (window.__views ||= {})[host.id] = v; } return v; }); return p; }
+  };
+}
+
+
+const wait = ms => sleep(reducedMotion ? 0 : ms);
+let soundOn = true, AC = null;
+// short wooden "tok" when blocks land or snap together
+function knock(vol = .16, f = 420) {
+  if (!soundOn || reducedMotion) return;
+  try {
+    AC ||= new (window.AudioContext || window.webkitAudioContext)();
+    const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * .55, t + .09);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + .14);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t + .15);
+  } catch { }
+}
+function setCap(id, items) { $('#' + id).innerHTML = items.map(([t, k = '']) => `<span class="capchip ${k}">${t}</span>`).join(''); }
+
+/* =========================================================
+   Blocks — each small cube is its own group with six
+   pickable faces (storyboard IDs face_<arah>_<n>) and twelve
+   edges. A face touching another cube is "bercantum".
+   Cubes move with a fixed-step (1/240 s) physics step:
+   gravity + bounce when dropped, damped springs when they
+   slide together or apart.
+   ========================================================= */
+const DIRS = { top: [0, 1, 0], bottom: [0, -1, 0], front: [0, 0, 1], back: [0, 0, -1], right: [1, 0, 0], left: [-1, 0, 0] };
+const OPP = { top: 'bottom', bottom: 'top', front: 'back', back: 'front', right: 'left', left: 'right' };
+const DIR_MS = { top: 'atas', bottom: 'tapak bawah', front: 'depan', back: 'belakang', right: 'kanan', left: 'kiri' };
+const PAIR = [[0, 0, 0], [1, 0, 0]];
+const ROW4 = [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]];
+const SHAPE5 = [...ROW4, [0, 1, 0]];
+const GREEN = '#4FAE3F', GREEN_E = '#1F4A19', GOLD = '#FFD54F', RED = '#EF7B6C';
+
+function faceCorners(d) {
+  const n = DIRS[d], [u, v] = n[0] ? [[0, 1, 0], [0, 0, 1]] : n[1] ? [[0, 0, 1], [1, 0, 0]] : [[1, 0, 0], [0, 1, 0]];
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => [0, 1, 2].map(k => (n[k] + u[k] * a + v[k] * b) / 2));
+}
+const CORN = [...Array(8)].map((_, i) => [(i & 1) - .5, ((i >> 1) & 1) - .5, ((i >> 2) & 1) - .5]);
+const CUBE_EDGES = [];
+for (let a = 0; a < 8; a++) for (let b = a + 1; b < 8; b++) if ([1, 2, 4].includes(a ^ b)) CUBE_EDGES.push([CORN[a], CORN[b]]);
+
+let SHADOW_TEX = null;
+function BlockRig(V, cells, { pre = '', parent } = {}) {
+  const T = V.T, root = V.group(parent), key = c => c.join(), idx = new Map(cells.map((c, i) => [key(c), i]));
+  const cen = [0, 1, 2].map(k => cells.reduce((a, c) => a + c[k], 0) / cells.length);
+  const baseY = Math.min(...cells.map(c => c[1])), floorY = baseY - cen[1] - .5;
+  const cubes = cells.map((c, i) => {
+    const home = c.map((v, k) => v - cen[k]), g = V.group(root); g.position.set(...home);
+    return { n: i + 1, cell: c, g, home, p: [...home], v: [0, 0, 0], t: [...home], fall: false, hold: false, ground: c[1] === baseY };
+  });
+  const faces = new Map();
+  cubes.forEach(cb => {
+    for (const d in DIRS) {
+      const id = `${pre}face_${d}_${cb.n}`, nb = idx.get(key(cb.cell.map((v, k) => v + DIRS[d][k])));
+      V.face(id, faceCorners(d), { parent: cb.g, color: GREEN });
+      faces.set(id, { id, n: cb.n, dir: d, joined: nb != null, partner: nb != null ? `${pre}face_${OPP[d]}_${nb + 1}` : null, nb: nb != null ? nb + 1 : null });
+    }
+    CUBE_EDGES.forEach(([a, b], k) => V.edge(`${pre}e${cb.n}_${k}`, a, b, { parent: cb.g, color: GREEN_E, width: 2.2, pick: false }));
+  });
+  const all = [...faces.values()], exposed = all.filter(f => !f.joined);
+  const joins = all.filter(f => f.joined && DIRS[f.dir].some(v => v > 0)).map(f => ({ a: f.n, b: f.nb, fa: f.id, fb: f.partner }));
+
+  // soft contact shadow under each ground cube (WebGL only)
+  const shadows = [];
+  if (V.gl) {
+    if (!SHADOW_TEX) {
+      const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+      const g = x.createRadialGradient(32, 32, 6, 32, 32, 32); g.addColorStop(0, 'rgba(36,27,53,.5)'); g.addColorStop(1, 'rgba(36,27,53,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 64, 64); SHADOW_TEX = new T.CanvasTexture(c);
+    }
+    cubes.filter(cb => cb.ground).forEach(cb => {
+      const m = new T.Mesh(new T.PlaneGeometry(1.8, 1.8), new T.MeshBasicMaterial({ map: SHADOW_TEX, transparent: true, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2; m.renderOrder = -1; root.add(m); shadows.push({ m, cb });
+    });
+  }
+
+  // ---------- physics ----------
+  const H = 1 / 240, G = 30, BOUNCE = .3, K = 95, C = 2 * Math.sqrt(95) * .9;
+  let last = 0, acc = 0, waiters = [], epoch = 0;
+  const atRest = cb => !cb.fall && !cb.hold && cb.v.every(v => Math.abs(v) < .02) && cb.p.every((v, k) => Math.abs(v - cb.t[k]) < .004);
+  function integrate(cb) {
+    if (cb.hold) return;
+    for (let k = 0; k < 3; k++) {
+      if (k === 1 && cb.fall) {
+        cb.v[1] -= G * H; cb.p[1] += cb.v[1] * H;
+        if (cb.p[1] <= cb.t[1]) {
+          cb.p[1] = cb.t[1];
+          if (cb.v[1] < -1.6) { const s = -cb.v[1]; cb.v[1] = s * BOUNCE; api.onImpact?.(cb, s); }
+          else { cb.v[1] = 0; cb.fall = false; api.onLand?.(cb); }
+        }
+        continue;
+      }
+      cb.v[k] += (K * (cb.t[k] - cb.p[k]) - C * cb.v[k]) * H; cb.p[k] += cb.v[k] * H;
+    }
+  }
+  const spread = (cb, k) => { const s = 1 + .5 * k, y0 = floorY + .5; return [cb.home[0] * s, y0 + (cb.home[1] - y0) * s, cb.home[2] * s]; };
+  function step(now) {
+    if (reducedMotion) cubes.forEach(cb => { if (cb.hold) return; if (cb.fall) { cb.fall = false; api.onLand?.(cb); } cb.p = [...cb.t]; cb.v = [0, 0, 0]; });
+    else { acc += last ? Math.min(.05, (now - last) / 1000) * SPEED.phys : 0; while (acc >= H) { acc -= H; cubes.forEach(integrate); } }
+    last = now;
+    cubes.forEach(cb => cb.g.position.set(...cb.p));
+    const under = V.state.pitch < -.05;
+    for (const s of shadows) {
+      const h = Math.max(0, s.cb.p[1] - floorY - .5);
+      s.m.visible = s.cb.g.visible && !under;
+      s.m.position.set(s.cb.p[0], floorY - .006, s.cb.p[2]); s.m.scale.setScalar(1 + h * .12); s.m.material.opacity = Math.max(0, 1 - h / 5);
+    }
+    if (waiters.length && cubes.every(atRest)) { const w = waiters; waiters = []; w.forEach(r => r()); }
+  }
+
+  const api = {
+    root, cubes, faces, all, exposed, joins, floorY, step,
+    face: id => faces.get(id),
+    explode(k, instant) {
+      cubes.forEach(cb => { cb.t = spread(cb, k); if (instant) { epoch++; cb.p = [...cb.t]; cb.v = [0, 0, 0]; cb.fall = cb.hold = false; cb.g.visible = true; } });
+    },
+    // lift a cube out of sight, then let gravity drop it onto its target
+    drop(cb, h = 4.5, delay = 0) {
+      const my = epoch; cb.p = [...cb.t]; cb.p[1] += h; cb.v = [0, 0, 0]; cb.hold = true; cb.fall = false; cb.g.visible = false;
+      setTimeout(() => { if (my !== epoch) return; cb.g.visible = true; cb.hold = false; cb.fall = true; }, reducedMotion ? 0 : delay);
+    },
+    // hold a cube in the air (visible) until release() lets gravity take it
+    hover(cb, h) { epoch++; cb.p = [...cb.t]; cb.p[1] += h; cb.v = [0, 0, 0]; cb.hold = true; cb.fall = false; cb.g.visible = true; },
+    release(cb) { cb.hold = false; cb.fall = true; },
+    settle() { return new Promise(r => waiters.push(r)); },
+    paint(fn) { all.forEach(f => V.setFace(f.id, { color: GREEN, opacity: 1, glow: 0, ...(fn(f) || {}) })); },
+    faceAt: id => () => { const f = faces.get(id); return cubes[f.n - 1].g.localToWorld(new T.Vector3(...DIRS[f.dir].map(v => v * .78))); },
+    cubeAt: n => () => cubes[n - 1].g.getWorldPosition(new T.Vector3()),
+    joinAt: j => () => { const J = joins[j]; return cubes[J.a - 1].g.getWorldPosition(new T.Vector3()).lerp(cubes[J.b - 1].g.getWorldPosition(new T.Vector3()), .5); }
+  };
+  return api;
+}
+
+/* ---------- hull: the big cuboid / cube (M1–M6, E1–E12, V1–V8) ---------- */
+const BOXV = { V1: [-1, -1, 1], V2: [1, -1, 1], V3: [1, 1, 1], V4: [-1, 1, 1], V5: [-1, -1, -1], V6: [1, -1, -1], V7: [1, 1, -1], V8: [-1, 1, -1] };
+const BOXF = { M1: ['V1', 'V2', 'V3', 'V4'], M2: ['V6', 'V5', 'V8', 'V7'], M3: ['V4', 'V3', 'V7', 'V8'], M4: ['V5', 'V6', 'V2', 'V1'], M5: ['V2', 'V6', 'V7', 'V3'], M6: ['V5', 'V1', 'V4', 'V8'] };
+const BOXE = { E1: ['V1', 'V2'], E2: ['V2', 'V3'], E3: ['V3', 'V4'], E4: ['V4', 'V1'], E5: ['V5', 'V6'], E6: ['V6', 'V7'], E7: ['V7', 'V8'], E8: ['V8', 'V5'], E9: ['V1', 'V5'], E10: ['V2', 'V6'], E11: ['V3', 'V7'], E12: ['V4', 'V8'] };
+// overlay = invisible shell just outside the blocks, lit up while counting
+function Hull(V, dims, { parent, pre = '', overlay = true } = {}) {
+  const s = overlay ? 1.012 : 1, P = {};
+  for (const k in BOXV) P[k] = BOXV[k].map((v, i) => v * dims[i] / 2 * (overlay ? 1 + (s - 1) / dims[i] : 1));
+  const H = { pre, overlay, faces: [], edges: [], verts: [] }, NRM = { M1: [0, 0, 1], M2: [0, 0, -1], M3: [0, 1, 0], M4: [0, -1, 0], M5: [1, 0, 0], M6: [-1, 0, 0] };
+  const host = parent || V.content;
+  // label anchor just outside the centre of a big face
+  const ALONG = { M1: -.22, M2: .22, M3: .08, M4: -.08 }; // spread labels along a long cuboid so they do not stack
+  H.at = id => () => { const k = id.slice(pre.length), p = NRM[k].map((v, i) => v * (dims[i] / 2 + .32)); p[0] += (ALONG[k] || 0) * (dims[0] - 1); return host.localToWorld(new V.T.Vector3(...p)); };
+  for (const id in BOXF) { V.face(pre + id, BOXF[id].map(k => P[k]), { parent, color: GREEN, opacity: overlay ? 0 : 1, pick: false }); H.faces.push(pre + id); }
+  for (const id in BOXE) { V.edge(pre + id, P[BOXE[id][0]], P[BOXE[id][1]], { parent, color: GREEN_E, width: 2.6, pick: false }); H.edges.push(pre + id); }
+  for (const id in BOXV) { V.vert(pre + id, P[id], { parent, show: false, through: true, r: .1, pick: false }); H.verts.push(pre + id); }
+  H.reset = keepLabels => {
+    H.faces.forEach(id => V.setFace(id, { color: GREEN, opacity: overlay ? 0 : 1, glow: 0 }));
+    H.edges.forEach(id => V.setEdge(id, { color: GREEN_E, width: 2.6, hidden: 'none', show: !overlay }));
+    H.verts.forEach(id => V.setVert(id, { show: false, color: '#4E2483', r: .1 }));
+    if (!keepLabels) V.clearLabels('n' + pre);
+  };
+  H.reset();
+  return H;
+}
+const PART = {
+  face: { name: 'Permukaan rata', n: 6, cls: 'f' },
+  edge: { name: 'Tepi', n: 12, cls: 'e' },
+  vert: { name: 'Bucu', n: 8, cls: 'v' }
+};
+/* =========================================================
+   SeqPlayer — every animation is a list of numbered steps.
+   seq.draw(k) puts the scene in the state of step k from
+   scratch, so pupils can play / pause, drag the slider back
+   and forth, or go one step at a time. Moving forward one
+   step plays the motion; any jump snaps straight to it.
+   ========================================================= */
+const SPEEDS = { slow: { dwell: 2000, phys: .45, label: '🐢 Perlahan' }, fast: { dwell: 1100, phys: 1, label: '🐇 Laju' } };
+let SPEED = SPEEDS.slow;
+const slowMs = ms => ms / SPEED.phys;
+const PLAYERS = [];
+function SeqPlayer(bar) {
+  bar.innerHTML = `<div class="sp-top"><span class="sp-title"></span><span class="sp-step" aria-live="polite"></span></div><div class="sp-row"><button class="spb play" data-a="play" aria-label="Main">▶</button><button class="spb" data-a="prev" aria-label="Langkah sebelum">‹</button><input type="range" min="0" max="1" step="1" value="0" aria-label="Langkah animasi"><button class="spb" data-a="next" aria-label="Langkah seterusnya">›</button><button class="spspeed" data-a="speed" title="Tukar kelajuan"></button></div>`;
+  const range = $('input', bar), title = $('.sp-title', bar), stepEl = $('.sp-step', bar), pb = $('[data-a=play]', bar), sb = $('[data-a=speed]', bar);
+  let seq = null, k = 0, playing = false, tok = 0, dtok = 0;
+  function ui() {
+    pb.textContent = playing ? '❚❚' : '▶'; pb.setAttribute('aria-label', playing ? 'Jeda' : 'Main');
+    sb.textContent = SPEED.label; sb.setAttribute('aria-label', 'Kelajuan: ' + SPEED.label.slice(3));
+    if (!seq) return;
+    range.max = seq.n; range.value = k; range.style.setProperty('--p', `${seq.n ? k / seq.n * 100 : 0}%`);
+    stepEl.textContent = `Langkah ${k} / ${seq.n}`;
+  }
+  async function show(to, animate) {
+    const s = seq; k = Math.max(0, Math.min(s.n, to)); ui();
+    const my = ++dtok, alive = () => my === dtok && s === seq;
+    await s.draw(k, animate, alive);
+    if (alive() && k === s.n) s.onEnd?.(playing);
+  }
+  async function play() {
+    if (!seq) return;
+    const my = ++tok; playing = true; ui();
+    if (k >= seq.n) await show(0, false);
+    while (my === tok && seq && k < seq.n) {
+      await wait(SPEED.dwell); if (my !== tok) return;
+      await show(k + 1, true); if (my !== tok) return;
+    }
+    if (my === tok) { playing = false; ui(); }
+  }
+  function pause() { tok++; playing = false; ui(); }
+  pb.addEventListener('click', () => { playing ? pause() : play(); log(current, playing ? 'anim_play' : 'anim_pause', { seq: seq?.title, step: k }); });
+  $('[data-a=prev]', bar).addEventListener('click', () => { if (!seq) return; pause(); show(k - 1, false); });
+  $('[data-a=next]', bar).addEventListener('click', () => { if (!seq) return; pause(); if (k < seq.n) show(k + 1, true); });
+  range.addEventListener('input', () => { if (!seq) return; const v = +range.value; pause(); show(v, false); }); // read before pause() redraws the slider
+  sb.addEventListener('click', () => { SPEED = SPEED === SPEEDS.slow ? SPEEDS.fast : SPEEDS.slow; PLAYERS.forEach(p => p.ui()); log(current, 'anim_speed', SPEED.label); });
+  const api = {
+    ui, pause, get seq() { return seq; }, get step() { return k; }, get playing() { return playing; },
+    load(s, { autoplay = true, at = 0 } = {}) { pause(); seq = s; title.textContent = s.title; bar.hidden = false; show(at, false); if (autoplay) play(); },
+    close() { pause(); dtok++; seq = null; bar.hidden = true; }
+  };
+  PLAYERS.push(api); ui();
+  return api;
+}
+// keep the labels under `prefix` equal to `want` ({key: [html, at, cls, dimAt]}); unchanged ones are not re-created
+const LBLKEYS = new WeakMap();
+function syncLabels(V, prefix, want) {
+  const have = LBLKEYS.get(V) || new Set(); LBLKEYS.set(V, have);
+  for (const key of [...have]) if (key.startsWith(prefix) && !(key in want)) { V.unlabel(key); have.delete(key); }
+  for (const key in want) { const [html, at, cls, dim] = want[key]; const l = V.label(key, html, at, cls); l.dimIfHidden = dim; have.add(key); }
+}
+
+// count the faces / edges / vertices of a hull: step k lights items 0..k-1, the newest one emphasised
+function hullSeq(V, H, part, { title, prep, onFrame, onDone, fresh = true } = {}) {
+  const L = part === 'face' ? H.faces : part === 'edge' ? H.edges : H.verts, n = L.length;
+  if (fresh) H.reset();
+  return {
+    title: title || `Tonton: kira ${PART[part].name.toLowerCase()}`, n,
+    draw(k, animate) {
+      H.reset(true); prep?.(part);
+      if (part !== 'vert') H.edges.forEach(id => V.setEdge(id, { show: true, hidden: 'dash' }));
+      const want = {};
+      for (let i = 0; i < k; i++) {
+        const id = L[i], last = i === k - 1, key = 'n' + H.pre + id;
+        if (part === 'face') { V.setFace(id, { color: GOLD, opacity: last ? .85 : .6, glow: last ? .35 : .08, emissive: '#FFB300' }); want[key] = [i + 1, H.at(id), 'nb f', V.at.face(id)]; }
+        if (part === 'edge') { V.setEdge(id, { color: last ? '#E0A800' : '#C99700', width: last ? 8 : 5 }); want[key] = [i + 1, V.at.edge(id), 'nb e']; }
+        if (part === 'vert') { V.setVert(id, { show: true, color: last ? '#F2B705' : '#7C4DCC', r: last ? .17 : .12 }); want[key] = [i + 1, V.at.vert(id, .32), 'nb v', V.at.vert(id)]; }
+      }
+      syncLabels(V, 'n' + H.pre, want);
+      if (animate && k) knock(.08, 560 + k * 30);
+      onFrame?.(part, k, n);
+      if (k === n) onDone?.(part);
+    }
+  };
+}
+function HullPlayer(bar, { getV, getH, prep, onFrame, onDone }) {
+  const P = SeqPlayer(bar); let part = null;
+  return {
+    get part() { return part; },
+    open(p, autoplay = true) { part = p; P.load(hullSeq(getV(), getH(), p, { prep, onFrame, onDone }), { autoplay }); },
+    close() { part = null; P.close(); getH()?.reset(); }
+  };
+}
+
+// all = n × 6, every join hides 2, exposed = all − 2·joins — one step per block and one per join
+function countSeq(V, rig, cap, { final = true, fit = 2.6, title = 'Tonton: langkah fikir', onStep } = {}) {
+  const nc = rig.cubes.length, j = rig.joins.length, tot = nc * 6, m = 2 * j;
+  const cEnd = 1 + nc, red = cEnd + 1, jEnd = red + j, last = jEnd + 1;
+  const L1 = [`Langkah fikir: jumlah semua permukaan rata ${nc} x 6 = ${tot}`, 'gold'];
+  return {
+    title, n: last,
+    async draw(k, animate, alive) {
+      const apart = k >= 1 && k < last, ci = Math.min(Math.max(k - 1, 0), nc), jc = k < last ? Math.min(Math.max(k - red, 0), j) : 0;
+      rig.explode(apart ? 1.2 : 0, !animate); V.view({ fit: apart ? fit * 1.25 : fit });
+      rig.paint(f => k >= 2 && k <= cEnd ? (f.n <= ci ? { color: f.n === ci ? GOLD : '#B9E3A8' } : {}) : k >= red && k < last && f.joined ? { color: RED } : {});
+      const want = {};
+      if (k >= 2 && k <= cEnd) for (let i = 1; i <= ci; i++) want['kc' + i] = ['+6', rig.cubeAt(i), 'gold'];
+      for (let t = 0; t < jc; t++) want['kj' + t] = ['−2', rig.joinAt(t), 'err'];
+      syncLabels(V, 'k', want);
+      cap(k === 0 ? [['Kira semua permukaan rata kecil']]
+        : k === 1 ? [['Pisahkan blok satu demi satu']]
+        : k <= cEnd ? [[`${ci} kubus × 6 = ${6 * ci} permukaan rata`, 'gold']]
+        : k < last ? [L1, ...(jc ? [[`Tolak permukaan rata bercantum: ${jc} cantuman x 2 = ${2 * jc}`, 'err']] : [['Permukaan rata merah bercantum', 'err']])]
+        : [L1, [`Tolak permukaan rata bercantum: ${j} cantuman x 2 = ${m}`, 'err'], final ? [`Jumlah permukaan rata terdedah = ${tot} - ${m} = ${tot - m}`, 'ok'] : [`${nc} x 6 - ${m}`]]);
+      onStep?.(k, { red, jEnd, last });
+      if (animate) {
+        knock(.1, k > red && k <= jEnd ? 300 : 520 + k * 30);
+        if (k === 1 || k === last) { await rig.settle(); if (alive() && k === last) knock(.2, 380); }
+      }
+    }
+  };
+}
+
+// views that face each side of a block towards the camera
+const FACE_VIEW = { top: { yaw: -.5, pitch: .75 }, front: { yaw: -.3, pitch: .3 }, right: { yaw: -1.05, pitch: .3 }, back: { yaw: 2.75, pitch: .3 }, left: { yaw: 1.05, pitch: .3 }, bottom: { yaw: -.5, pitch: -.85 } };
+const VIEW_TOP = { yaw: -.55, pitch: .42 }, VIEW_BOTTOM = { yaw: -.55, pitch: -.8 };
+
+/* ---------- small isometric-style drawing of blocks (SVG, exact) ---------- */
+function blockSVG(svg, cells, { s = 40, pad = 6 } = {}) {
+  const a = s * .45, P = (x, y, z) => [x * s - z * a, -y * s + z * a];
+  const order = [...cells].sort((p, q) => p[2] - q[2] || p[1] - q[1] || p[0] - q[0]);
+  let out = '', xs = [], ys = [];
+  const poly = (pts, fill) => { pts.forEach(([x, y]) => { xs.push(x); ys.push(y); }); out += `<polygon points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="${fill}" stroke="#1F4A19" stroke-width="2" stroke-linejoin="round"/>`; };
+  for (const [x, y, z0] of order) {
+    const z = -z0; // +z in cells is towards the viewer; draw depth up-right
+    poly([P(x, y, z), P(x + 1, y, z), P(x + 1, y + 1, z), P(x, y + 1, z)], '#4CAF50');
+    poly([P(x, y + 1, z), P(x + 1, y + 1, z), P(x + 1, y + 1, z - 1), P(x, y + 1, z - 1)], '#7DD36B');
+    poly([P(x + 1, y, z), P(x + 1, y, z - 1), P(x + 1, y + 1, z - 1), P(x + 1, y + 1, z)], '#3A8C35');
+  }
+  const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad, w = Math.max(...xs) - x0 + pad, h = Math.max(...ys) - y0 + pad;
+  svg.setAttribute('viewBox', `${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
+  svg.innerHTML = out;
+}
+
+/* ---------- Benar / Palsu table with code column ---------- */
+function TFTable(host, rows, onChange, onLabel) {
+  host.innerHTML = `<table class="tf"><thead><tr><th class="code"></th><th class="stmt">Sifat</th><th>Benar</th><th>Palsu</th></tr></thead><tbody>${rows.map(r => `<tr id="row${r.id}"><td class="code">${r.id}</td><td class="stmt">${onLabel ? `<button class="stmtbtn" data-row="${r.id}" aria-pressed="false" title="Klik untuk lihat pada kuboid">${r.text}</button>` : r.text}</td>${['true', 'false'].map(v => `<td><label class="rad"><input type="radio" name="tf${host.id}${r.id}" data-row="${r.id}" value="${v}" aria-label="${r.id} ${r.text}: ${v === 'true' ? 'Benar' : 'Palsu'}"><span></span></label></td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  host.addEventListener('change', e => { if (e.target.dataset.row) onChange(e.target.dataset.row, e.target.value === 'true'); });
+  if (onLabel) host.addEventListener('click', e => { const b = e.target.closest('.stmtbtn'); if (b) onLabel(b.dataset.row); });
+  const get = id => { const c = host.querySelector(`input[data-row="${id}"]:checked`); return c ? c.value === 'true' : null; };
+  return {
+    get values() { return Object.fromEntries(rows.map(r => [r.id, get(r.id)])); },
+    get filled() { return rows.filter(r => get(r.id) !== null).length; },
+    reset() { $$('input', host).forEach(i => i.checked = false); },
+    load(vals) { rows.forEach(r => { const v = vals[r.id]; $$(`input[data-row="${r.id}"]`, host).forEach(i => i.checked = v != null && (i.value === 'true') === v); }); },
+    lock(on) { $$('input', host).forEach(i => i.disabled = on); }
+  };
+}
+const tfTxt = v => v == null ? '–' : v ? 'Benar' : 'Palsu';
+const digitsOnly = el => el.addEventListener('input', () => { const v = el.value.replace(/\D/g, ''); if (v !== el.value) el.value = v; });
+
+/* =========================================================
+   Face picking shared by S03 and S04: exposed faces toggle
+   gold, joined faces are refused with the storyboard message
+   ========================================================= */
+const JOINED_MSG = 'Permukaan rata ini tidak terdedah kerana bercantum dengan blok lain.';
+function FacePicker(sid, getV, getRig, { counter, fb, onChange }) {
+  const sel = new Set(), order = [];
+  let hover = null, showHidden = false;
+  function paint() {
+    const rig = getRig(), V = getV(); if (!rig || !V) return;
+    rig.paint(f => sel.has(f.id) ? { color: GOLD, glow: hover === f.id ? .12 : 0, emissive: '#FFB300' } : f.joined && showHidden ? { color: RED } : hover === f.id && !f.joined ? { glow: .22, emissive: '#B6F09C' } : {});
+  }
+  function count(n) { counter.textContent = n; bump(counter); }
+  function pick(id, via) {
+    const rig = getRig(), f = rig?.face(id); if (!f) return;
+    if (f.joined) {
+      say(fb, 'err', JOINED_MSG); log(sid, 'face_invalid', { face: id, via });
+      const V = getV(); V.setFace(id, { color: '#C62828' }); setTimeout(paint, 500); knock(.12, 180); return;
+    }
+    if (sel.has(id)) { sel.delete(id); order.push('-' + id); } else { sel.add(id); order.push(id); knock(.1, 560 + sel.size * 25); }
+    log(sid, 'face_pick', { face: id, selected: sel.has(id), count: sel.size, via });
+    paint(); count(sel.size); onChange(sel.size, id);
+  }
+  return {
+    sel, order, paint, pick,
+    hover(u) { hover = u?.kind === 'face' ? u.id : null; paint(); },
+    set hidden(on) { showHidden = on; paint(); },
+    clear() { sel.clear(); counter.textContent = 0; paint(); },
+    add(id) { sel.add(id); paint(); count(sel.size); },
+    set(ids) { sel.clear(); ids.forEach(i => sel.add(i)); counter.textContent = sel.size; paint(); }
+  };
+}
+function pickerView(host, opts, rigCells, picker) {
+  let rig = null;
+  const LZ = makeLazy(host, opts, V => {
+    rig = BlockRig(V, rigCells);
+    rig.exposed.forEach(f => V.proxy('face', f.id, `Permukaan rata ${DIR_MS[f.dir]}, blok ${f.n}`));
+    V.setPick({ faces: false, edges: false, verts: false, occlude: true });
+    V.scene.position.y = -.3; // leave room for the caption chips
+    rig.onImpact = (cb, s) => knock(Math.min(.25, s / 50), 260);
+    opts.onFrame = now => rig.step(now);
+  });
+  return { LZ, get rig() { return rig; } };
+}
+
+/* =========================================================
+   S01 — Kubus atau kuboid
+   ========================================================= */
+const S01 = (() => {
+  const next = $('#s01next'), info = $('#info_panel');
+  const INFO = { kubus: 'Kubus mempunyai 6 permukaan rata yang sama saiz.', kuboid: 'Kuboid terbina daripada 4 kubus yang dicantumkan. Kuboid mempunyai 6 permukaan rata, 8 bucu dan 12 tepi.' };
+  const NAME = { kubus: 'Kubus', kuboid: 'Kuboid' }, LBL = { kubus: '1 blok = kubus', kuboid: '4 blok dicantumkan → kuboid' };
+  const STEPS = {
+    kubus: ['Satu blok kecil', 'Blok jatuh ke lantai', '1 blok = kubus'],
+    kuboid: ['Empat blok kecil', 'Blok jatuh ke lantai', 'Permukaan rata merah akan bercantum', 'Blok dicantumkan', '4 blok dicantumkan → kuboid']
+  };
+  let shape = null, first = null, switches = 0, compare = false, infoPart = null;
+  const seen = new Set(), done = {};
+  const R = {}, HL = {};
+  blockSVG($('#icoKubus'), [[0, 0, 0]]); blockSVG($('#icoKuboid'), ROW4);
+  const opts = { ...VIEW_TOP, fit: 1.6, sway: true, label: 'Blok mainan: kubus dan kuboid' };
+  const LZ = makeLazy($('#s01viz'), opts, V => {
+    R.kubus = BlockRig(V, [[0, 0, 0]], { pre: 'a' }); R.kuboid = BlockRig(V, ROW4, { pre: 'b' });
+    HL.kubus = Hull(V, [1, 1, 1], { parent: R.kubus.root, pre: 'ha' }); HL.kuboid = Hull(V, [4, 1, 1], { parent: R.kuboid.root, pre: 'hb' });
+    V.scene.position.y = -.2;
+    for (const k in R) { R[k].root.visible = false; R[k].onImpact = (cb, s) => knock(Math.min(.25, s / 50), 260); }
+    V.setPick({ faces: false, edges: false, verts: false });
+    opts.onFrame = now => { R.kubus.step(now); R.kuboid.step(now); };
+  });
+  const player = SeqPlayer($('#s01player'));
+  const cap = items => setCap('s01cap', items);
+
+  function renderUI() {
+    $('#btn_kubus').setAttribute('aria-pressed', String(shape === 'kubus'));
+    $('#btn_kuboid').setAttribute('aria-pressed', String(shape === 'kuboid'));
+    $('#s01cmp').setAttribute('aria-pressed', String(compare));
+    $$('#s01inf [data-ip]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ip === infoPart)));
+    setEnabled(next, !!shape);
+  }
+  function renderInfo() {
+    if (!shape) { info.className = 'infobox'; info.innerHTML = '<h4>MAKLUMAT</h4><p class="ph">Tekan nama bentuk untuk membuka maklumat.</p>'; return; }
+    info.className = 'infobox open';
+    info.innerHTML = `<h4>MAKLUMAT DIBUKA · ${NAME[shape].toUpperCase()}</h4><p class="reveal">${INFO[shape]}</p><div class="stats" id="s01stats"></div>`;
+    requestAnimationFrame(() => $('p', info).classList.add('on'));
+    ['face', 'edge', 'vert'].filter(p => seen.has(p)).forEach(addStat);
+  }
+  function addStat(part) { const P = PART[part], el = $('#s01stats'); if (el) el.insertAdjacentHTML('beforeend', `<span class="stat ${P.cls}"><i>${P.n}</i>${P.name.toLowerCase()}</span>`); }
+  function nameLabel(k, on) { const V = LZ.V; if (on) V.label('nm' + k, LBL[k], () => R[k].root.localToWorld(new V.T.Vector3(0, -.95, .5)), k === shape ? 'teal' : ''); else V.unlabel('nm' + k); }
+  // "cahaya sorot" on the chosen shape
+  function glow(k) {
+    const V = LZ.V, r = R[k]; if (!V) return;
+    V.tween(slowMs(900), p => r.all.forEach(f => V.setFace(f.id, { glow: Math.sin(p * Math.PI) * .45, emissive: '#FFE082' })));
+  }
+
+  // entrance as steps: blocks wait in the air → fall → (kuboid: joined faces marked → slide together) → named
+  function entrySeq(k) {
+    const V = LZ.V, r = R[k], H = HL[k], steps = STEPS[k], n = steps.length - 1;
+    return {
+      title: k === 'kubus' ? 'Tonton: satu blok' : 'Tonton: blok dicantumkan', n,
+      async draw(s, animate, alive) {
+        r.root.visible = true; H.reset(); V.unlabel('cantum');
+        if (!compare) V.view({ fit: (k === 'kuboid' ? 2.2 : 1.2) * (s <= 1 ? 1.4 : 1) }); // zoom out while the blocks are in the air
+        cap([[steps[s], s === n ? 'ok' : '']]); nameLabel(k, s === n);
+        if (k === 'kubus') {
+          if (s === 0) { r.explode(0, true); r.hover(r.cubes[0], 1.6); }
+          else if (s === 1 && animate) { r.release(r.cubes[0]); await r.settle(); }
+          else r.explode(0, true);
+          r.paint(() => ({}));
+        } else {
+          r.paint(f => (s === 2 || (s === 3 && animate)) && f.joined ? { color: RED } : {});
+          if (s === 0) { r.explode(1.1, true); r.cubes.forEach((cb, i) => r.hover(cb, 1.7 + i * .3)); }
+          else if (s === 1 && animate) { for (const cb of r.cubes) { if (!alive()) return; r.release(cb); await wait(slowMs(200)); } await r.settle(); }
+          else if (s === 3 && animate) { r.explode(0); await r.settle(); if (!alive()) return; knock(.22, 380); r.paint(() => ({})); }
+          else r.explode(s <= 2 ? 1.1 : 0, true);
+          if (s === 2) V.label('cantum', 'cantum', () => r.root.localToWorld(new V.T.Vector3(0, 1.1, 0)), 'err');
+        }
+        if (s === n) { done[k] = true; if (animate) glow(k); }
+      },
+      onEnd(wasPlaying) { if (wasPlaying && infoPart && k === shape) setTimeout(() => { if (player.seq?.n === n && infoPart) openInfo(); }, slowMs(700)); }
+    };
+  }
+  const finalize = k => entrySeq(k).draw(STEPS[k].length - 1, false, () => true);
+  function openInfo(autoplay = true) {
+    const V = LZ.V; if (!done[shape]) finalize(shape);
+    player.load(hullSeq(V, HL[shape], infoPart, {
+      prep: () => R[shape].paint(() => ({ opacity: .28 })),
+      onFrame: (p, k, n) => cap([[`${PART[p].name}: ${k}${k === n ? '' : ' …'}`, k === n ? 'ok' : '']]),
+      onDone: p => { if (!seen.has(p)) { seen.add(p); addStat(p); log('S01', 'info_complete', { shape, part: p }); } }
+    }), { autoplay });
+  }
+  function layout() {
+    const V = LZ.V;
+    const vis = { kubus: compare || shape === 'kubus', kuboid: compare || shape === 'kuboid' };
+    const X = compare ? { kubus: -2.75, kuboid: 1.15 } : { kubus: 0, kuboid: 0 };
+    V.view({ fit: compare ? 3.15 : shape === 'kuboid' ? 2.2 : 1.2 });
+    for (const k in R) {
+      const r = R[k];
+      if (!vis[k]) { r.root.visible = false; V.unlabel('nm' + k); continue; }
+      const x0 = r.root.position.x, x1 = X[k];
+      if (r.root.visible) V.tween(slowMs(700), p => r.root.position.x = x0 + (x1 - x0) * ease(p)); else r.root.position.x = x1;
+      if (done[k]) { r.root.visible = true; nameLabel(k, true); }
+    }
+    return vis;
+  }
+  async function show() {
+    const V = await LZ.ready(); if (!V) return;
+    V.start(); for (const k in HL) HL[k].reset();
+    const vis = layout();
+    // the other shape in Banding appears ready-made
+    for (const k in R) if (vis[k] && k !== shape && !done[k]) finalize(k);
+    if (!shape) { player.close(); cap(compare ? [] : [['Tekan Kubus atau Kuboid']]); return; }
+    if (!done[shape]) player.load(entrySeq(shape));
+    else if (infoPart) openInfo();
+    else { player.load(entrySeq(shape), { autoplay: false, at: STEPS[shape].length - 1 }); glow(shape); }
+  }
+
+  function choose(k, via) {
+    if (k === shape) { glow(k); return; }
+    if (shape) switches++;
+    first ||= k; shape = k; seen.clear();
+    log('S01', 'shape_select', { shape: k, first, switches, via });
+    renderUI(); renderInfo(); show();
+  }
+  $('#btn_kubus').addEventListener('click', () => choose('kubus', 'click'));
+  $('#btn_kuboid').addEventListener('click', () => choose('kuboid', 'click'));
+  $('#s01cmp').addEventListener('click', () => { compare = !compare; log('S01', 'compare_toggle', compare); renderUI(); show(); });
+  $$('#s01inf [data-ip]').forEach(b => b.addEventListener('click', async () => {
+    if (!shape) { toast('Tekan Kubus atau Kuboid dahulu.'); shake($('.shapebtns')); return; }
+    const p = b.dataset.ip; infoPart = infoPart === p ? null : p; log('S01', 'info_open', { part: infoPart }); renderUI();
+    if (!await LZ.ready()) return;
+    if (infoPart) { addHelp('S01'); openInfo(); }
+    else { HL[shape].reset(); player.load(entrySeq(shape), { autoplay: false, at: STEPS[shape].length - 1 }); }
+  }));
+  next.addEventListener('click', () => {
+    if (!isEnabled(next)) { toast('Tekan Kubus atau Kuboid dahulu.'); shake($('.shapebtns')); return; }
+    log('S01', 'next', { first, switches, active_ms: activeMs('S01') }); go('S02', true);
+  });
+  $('#s01reset').addEventListener('click', () => {
+    shape = null; compare = false; infoPart = null; seen.clear(); for (const k in done) delete done[k];
+    player.close(); renderUI(); renderInfo();
+    if (LZ.V) { for (const k in R) { HL[k].reset(); R[k].root.visible = false; } LZ.V.clearLabels(); LZ.V.view({ ...VIEW_TOP, fit: 1.6 }); }
+    cap([['Tekan Kubus atau Kuboid']]); log('S01', 'reset');
+  });
+  renderUI();
+  return {
+    async enter() { const V = await LZ.ready(); V?.start(); if (!shape) cap([['Tekan Kubus atau Kuboid']]); else if (!player.seq) show(); },
+    leave() { player.close(); infoPart = null; renderUI(); LZ.V?.stop(); }
+  };
+})();
+
+/* =========================================================
+   S02 — Sifat kuboid (latihan berpandu Benar / Palsu)
+   ========================================================= */
+const S02 = (() => {
+  const ROWS = [
+    { id: '1A', text: '6 permukaan rata', key: true, part: 'face', msg: '6 permukaan rata - betul' },
+    { id: '1B', text: '10 bucu', key: false, part: 'vert', msg: '10 bucu - salah, kuboid ada 8 bucu' },
+    { id: '1C', text: '12 tepi', key: true, part: 'edge', msg: '12 tepi - betul' }];
+  const fb = $('#s02fb'), chk = $('#s02check'), next = $('#s02next'), rowsEl = $('#s02rows');
+  let H = null, tk = 0, part = null, correct = false, firstAns = {};
+  const opts = { yaw: -.45, pitch: .45, fit: 2.5, sway: true, label: 'Kuboid daripada 4 blok' };
+  const LZ = makeLazy($('#s02viz'), opts, V => {
+    H = Hull(V, [4, 1, 1], { overlay: false }); V.scene.position.y = -.2;
+    // seams between the four blocks
+    [-1, 0, 1].forEach((x, i) => {
+      const c = [[x, -.5, .5], [x, .5, .5], [x, .5, -.5], [x, -.5, -.5]].map(p => p.map(v => v * 1.002));
+      c.forEach((p, k) => V.edge(`sm${i}_${k}`, p, c[(k + 1) % 4], { color: '#2E6B27', width: 1.5, pick: false }));
+    });
+    V.setPick({ faces: false, edges: false, verts: false });
+  });
+  const TB = TFTable($('#s02table'), ROWS, (id, v) => {
+    firstAns[id] ??= v; log('S02', 'response', { row: id, value: v });
+    if (correct || rowsEl.innerHTML) { correct = false; rowsEl.innerHTML = ''; say(fb); $$('#s02table tr').forEach(r => r.classList.remove('ok', 'bad')); }
+    ui();
+  }, id => highlight(ROWS.find(r => r.id === id).part, id));
+  function ui() {
+    setEnabled(chk, TB.filled === 3); setEnabled(next, correct);
+    $$('.partchips .btn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.part === part)));
+    $$('#s02help div').forEach(d => d.classList.toggle('on', d.dataset.part === part));
+    $$('#s02table .stmtbtn').forEach(b => b.setAttribute('aria-pressed', String(ROWS.find(r => r.id === b.dataset.row).part === part)));
+  }
+  let via = null;
+  const player = HullPlayer($('#s02player'), {
+    getV: () => LZ.V, getH: () => H,
+    prep: p => { if (p === 'face') H.faces.forEach(id => LZ.V.setFace(id, { opacity: .3 })); },
+    onFrame: (p, k, n) => setCap('s02cap', k === n ? [[`${PART[p].name}: ${n}`, 'ok'], ...(via === '1B' ? [['Bilangan bucu ialah 8, bukan 10.', 'gold']] : [])] : [[`${PART[p].name}: ${k} …`]])
+  });
+  async function highlight(p, how) {
+    const my = ++tk, V = await LZ.ready(); if (!V || my !== tk) return;
+    V.start(); part = p; via = how; ui();
+    addHelp('S02'); log('S02', 'help_view', { part: p, via: how });
+    V.view({ yaw: -.45, pitch: .45 });
+    player.open(p);
+  }
+  $$('.partchips .btn').forEach(b => b.addEventListener('click', () => highlight(b.dataset.part, 'label')));
+  chk.addEventListener('click', () => {
+    if (!isEnabled(chk)) { say(fb, 'info', 'Tandakan Benar atau Palsu bagi ketiga-tiga baris dahulu.'); return; }
+    newAttempt('S02');
+    const vals = TB.values, res = ROWS.map(r => ({ r, ok: vals[r.id] === r.key }));
+    correct = res.every(x => x.ok);
+    log('S02', 'check', { responses: vals, correct, help_count: helps.S02 || 0 });
+    rowsEl.innerHTML = res.map(() => '<div class="fb"></div>').join('');
+    res.forEach((x, i) => { setTimeout(() => say(rowsEl.children[i], x.ok ? 'ok' : 'err', x.r.msg), reducedMotion ? 0 : i * 160); $('#row' + x.r.id).classList.toggle('ok', x.ok); $('#row' + x.r.id).classList.toggle('bad', !x.ok); });
+    if (correct) { say(fb, 'ok', 'Semua jawapan betul.'); confetti(); }
+    else { say(fb, 'info', 'Klik label untuk melihat bahagian pada kuboid, kemudian cuba semula.'); shake($('#s02table')); }
+    ui();
+  });
+  next.addEventListener('click', () => { if (!isEnabled(next)) { say(fb, 'info', 'Semak jawapan dan pastikan ketiga-tiga baris betul dahulu.'); return; } go('S03', true); });
+  function reset() { tk++; TB.reset(); correct = false; part = null; rowsEl.innerHTML = ''; say(fb); $$('#s02table tr').forEach(r => r.classList.remove('ok', 'bad')); player.close(); if (H) { H.reset(); LZ.V.clearLabels(); } setCap('s02cap', []); ui(); }
+  $('#s02reset').addEventListener('click', () => { reset(); log('S02', 'reset'); });
+  ui();
+  return { async enter() { const V = await LZ.ready(); V?.start(); }, leave() { tk++; player.close(); part = null; ui(); setCap('s02cap', []); LZ.V?.stop(); }, restart: reset };
+})();
+
+/* =========================================================
+   S03 — Permukaan rata terdedah: 2 kubus
+   ========================================================= */
+const S03 = (() => {
+  const fb = $('#s03fb'), next = $('#s03next');
+  let ready = false, reached = false, example = false, hidden = false, played = false;
+  const P = FacePicker('S03', () => PV.LZ.V, () => PV.rig, {
+    counter: $('#s03count'), fb, onChange(n) {
+      if (n === 10 && P.sel.size === 10) { reached = true; say(fb, 'ok', 'Bagus! Semua 10 permukaan rata kecil yang terdedah telah dipilih.'); confetti(); log('S03', 'reached_10', { order: [...P.order] }); }
+      else if (reached && !example) { reached = false; say(fb); }
+      else say(fb);
+      ui();
+    }
+  });
+  const opts = { ...VIEW_TOP, fit: 1.7, label: 'Dua kubus bercantum' };
+  const PV = pickerView($('#s03viz'), opts, PAIR, P);
+  PV.LZ.ready().then(V => { if (!V) return; V.on('pick', u => { if (!ready) return; if (u.kind === 'face') P.pick(u.id, u.via); }); V.on('hover', u => ready && P.hover(u)); });
+  const player = SeqPlayer($('#s03player'));
+  const cap = items => setCap('s03cap', items);
+  function ui() { setEnabled(next, reached || example); $('#help_hidden').setAttribute('aria-pressed', String(hidden)); $('#help_hidden').textContent = hidden ? 'Sorok permukaan rata tersembunyi' : 'Tunjuk permukaan rata tersembunyi'; }
+  function setReady(on) { ready = on; PV.LZ.V?.setPick({ faces: on }); }
+  function unhide() { if (!hidden) return; hidden = false; P.hidden = false; PV.LZ.V.clearLabels('bc'); ui(); }
+  const CAP1 = ['1 kubus → 6 permukaan rata kecil', 'gold'], CAP2 = ['2 kubus bercantum → 10 permukaan rata kecil terdedah', 'ok'];
+  const ORDER6 = ['top', 'front', 'left', 'back', 'bottom', 'right'].map(d => `face_${d}_1`);
+  // 0 two blocks apart · 1–6 number the faces of one cube · 7 joined faces turn red · 8 slide together
+  function introSeq() {
+    const V = PV.LZ.V, rig = PV.rig;
+    return {
+      title: 'Tonton: 2 kubus bercantum', n: 8,
+      async draw(k, animate, alive) {
+        setReady(false); unhide(); syncLabels(V, 'ex', {});
+        const joined = k === 8;
+        rig.explode(joined ? 0 : 2.2, !(animate && joined)); V.view({ fit: joined ? 1.7 : 2.1 });
+        const want = {};
+        if (k >= 1 && k <= 6) for (let i = 0; i < k; i++) want['in' + i] = [i + 1, rig.faceAt(ORDER6[i]), 'nb f', V.at.face(ORDER6[i])];
+        syncLabels(V, 'in', want);
+        rig.paint(f => k >= 1 && k <= 6 && ORDER6.indexOf(f.id) > -1 && ORDER6.indexOf(f.id) < k ? { color: GOLD } : k === 7 && f.joined ? { color: RED } : {});
+        cap(k === 0 ? [['Dua kubus kecil']] : k < 6 ? [[`Kubus pertama: ${k} permukaan rata kecil`, 'gold']] : k === 6 ? [CAP1] : k === 7 ? [CAP1, ['cantum', 'err']] : [CAP1, CAP2]);
+        if (animate && k >= 1 && k <= 6) knock(.07, 600 + k * 40);
+        if (joined) {
+          if (animate) { await rig.settle(); if (!alive()) return; knock(.22, 380); }
+          played = true; setReady(true); P.paint();
+          if (!fb.textContent) say(fb, 'info', 'Klik pada permukaan rata yang terdedah untuk mewarnakannya. Permukaan rata tengah yang bercantum tidak boleh dipilih.');
+        }
+      }
+    };
+  }
+  // worked example: the camera turns to each side, faces are numbered 1–10
+  function exampleSeq() {
+    const V = PV.LZ.V, rig = PV.rig, L = ['top', 'front', 'right', 'back', 'left', 'bottom'].flatMap(d => rig.exposed.filter(f => f.dir === d));
+    return {
+      title: 'Tonton: jawapan contoh', n: L.length,
+      draw(k, animate) {
+        setReady(false); unhide(); rig.explode(0, true); syncLabels(V, 'in', {});
+        P.set(L.slice(0, k).map(f => f.id));
+        V.view(k ? FACE_VIEW[L[k - 1].dir] : VIEW_TOP);
+        const want = {}; for (let i = 0; i < k; i++) want['ex' + i] = [i + 1, rig.faceAt(L[i].id), 'nb f', V.at.face(L[i].id)];
+        syncLabels(V, 'ex', want);
+        cap([CAP2, [`Dikira: ${k}${k ? ' · ' + DIR_MS[L[k - 1].dir] : ''}`, k === L.length ? 'ok' : 'gold']]);
+        if (animate && k) knock(.08, 600 + k * 30);
+        if (k === L.length) { example = true; setReady(true); say(fb, 'ok', 'Jawapan contoh: 10 permukaan rata kecil terdedah (termasuk 2 tapak bawah).'); ui(); }
+      }
+    };
+  }
+  function setHidden(on, via) {
+    const rig = PV.rig, V = PV.LZ.V; if (!rig || !ready) { toast('Tunggu animasi cantuman tamat.'); return; }
+    hidden = on; P.hidden = on; ui();
+    if (on) { addHelp('S03'); log('S03', 'help_hidden_open', { via }); rig.explode(1.2); rig.joins.forEach((j, k) => V.label('bc' + k, 'bercantum', rig.joinAt(k), 'err')); say(fb, 'info', 'Permukaan rata merah bercantum dengan blok lain. Permukaan rata itu tidak dikira.'); }
+    else { log('S03', 'help_hidden_close'); rig.explode(0); V.clearLabels('bc'); say(fb); }
+  }
+  $('#help_hidden').addEventListener('click', () => setHidden(!hidden, 'button'));
+  $('#s03clear').addEventListener('click', () => { P.clear(); if (!example) reached = false; say(fb); ui(); log('S03', 'clear_colours'); });
+  $('#s03example').addEventListener('click', () => {
+    if (!PV.rig || !played) { toast('Tunggu animasi cantuman tamat.'); return; }
+    addHelp('S03'); log('S03', 'example_open'); say(fb); player.load(exampleSeq());
+  });
+  $('#s03replay').addEventListener('click', async () => { log('S03', 'replay'); if (await PV.LZ.ready()) player.load(introSeq()); });
+  $('#s03top').addEventListener('click', () => PV.LZ.V?.view(VIEW_TOP));
+  $('#s03bottom').addEventListener('click', () => { PV.LZ.V?.view(VIEW_BOTTOM); log('S03', 'view_bottom'); });
+  next.addEventListener('click', () => { if (!isEnabled(next)) { say(fb, 'info', 'Pilih semua permukaan rata kecil yang terdedah sehingga kiraan 10, atau tekan Lihat Jawapan Contoh.'); shake($('#s03count').parentElement); return; } go('S04', true); });
+  function reset() {
+    P.clear(); reached = example = false; say(fb);
+    if (PV.rig) { unhide(); PV.LZ.V.clearLabels(); PV.LZ.V.view(VIEW_TOP); if (played) player.load(introSeq(), { autoplay: false, at: 8 }); }
+    ui();
+  }
+  $('#s03reset').addEventListener('click', () => { reset(); log('S03', 'reset'); });
+  ui();
+  return {
+    async enter() { const V = await PV.LZ.ready(); if (!V) return; V.start(); if (!player.seq) player.load(introSeq()); },
+    leave() { player.pause(); PV.LZ.V?.stop(); },
+    restart() { reset(); played = false; player.close(); }
+  };
+})();
+
+/* =========================================================
+   S04 — Bentuk 5 kubus: taip jumlah permukaan rata terdedah
+   ========================================================= */
+const S04 = (() => {
+  const fb = $('#s04fb'), inp = $('#s04in'), chk = $('#s04check'), next = $('#s04next'), hb = $('#s04help'), cbtn = $('#s04click');
+  let played = false, ready = false, level = 0, checked = false, correct = false, clickMode = false, firstVal = null, strategy = 'formula';
+  const P = FacePicker('S04', () => PV.LZ.V, () => PV.rig, {
+    counter: $('#s04count'), fb, onChange(n) { if (n === 22) say(fb, 'info', 'Kiraan klik: 22 permukaan rata. Kiraan disemak dengan kaedah tolak permukaan rata bercantum: 5 x 6 - 8 = 22.'); else say(fb); }
+  });
+  const opts = { ...VIEW_TOP, fit: 2.6, label: 'Bentuk lima kubus' };
+  const PV = pickerView($('#s04viz'), opts, SHAPE5, P);
+  PV.LZ.ready().then(V => { if (!V) return; V.on('pick', u => { if (clickMode && ready && u.kind === 'face') P.pick(u.id, u.via); }); V.on('hover', u => clickMode && ready && P.hover(u)); });
+  const player = SeqPlayer($('#s04player'));
+  const cap = items => setCap('s04cap', items);
+  digitsOnly(inp);
+  inp.addEventListener('input', () => { if (correct) { correct = false; $('#s04t3').classList.remove('on'); say(fb); } ui(); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') chk.click(); });
+  function ui() {
+    setEnabled(chk, inp.value.trim() !== ''); setEnabled(next, checked || level >= 2);
+    hb.textContent = level === 0 ? 'Bantuan 1' : level === 1 ? 'Bantuan 2' : 'Semua bantuan dibuka';
+    setEnabled(hb, level < 2);
+    $$('#s04ladder li').forEach((li, i) => li.classList.toggle('on', i < level));
+    cbtn.setAttribute('aria-pressed', String(clickMode)); $('#s04ctr').hidden = !clickMode; $('#s04note').hidden = !clickMode;
+  }
+  function clearOverlays(V) { ['ip', 'jn', 'k'].forEach(p => syncLabels(V, p, {})); }
+  // 0 the new block waits above · 1 it falls onto the first block and bounces · 2 named
+  function introSeq() {
+    const V = PV.LZ.V, rig = PV.rig, top = rig.cubes[4];
+    return {
+      title: 'Tonton: Ling menambah 1 blok', n: 2,
+      async draw(k, animate, alive) {
+        ready = false; clearOverlays(V); rig.paint(() => ({})); V.view({ fit: 2.6 });
+        if (k === 0) { rig.explode(0, true); rig.hover(top, 4.5); cap([['4 blok + 1 blok baharu']]); }
+        else if (k === 1 && animate) { rig.release(top); await rig.settle(); if (!alive()) return; knock(.22, 380); }
+        else rig.explode(0, true);
+        if (k >= 1) syncLabels(V, 'ip', k === 1 ? { ip: ['+1 blok', rig.cubeAt(5), 'teal'] } : {});
+        if (k === 1) cap([['Blok baharu mendarat di atas blok pertama', 'gold']]);
+        if (k === 2) { cap([['Ling menambah 1 blok di atas blok pertama.', 'gold']]); played = true; ready = true; }
+      }
+    };
+  }
+  // Bantuan 1: blocks move apart, each join is numbered
+  function help1Seq() {
+    const V = PV.LZ.V, rig = PV.rig, j = rig.joins.length;
+    return {
+      title: 'Tonton: bilangan cantuman', n: j + 1,
+      draw(k, animate) {
+        clearOverlays(V);
+        const apart = k >= 1;
+        rig.explode(apart ? 1.2 : 0, !animate); V.view({ fit: apart ? 3.1 : 2.6 });
+        rig.paint(f => apart && f.joined ? { color: RED } : {});
+        const want = {}; for (let t = 0; t < k - 1; t++) want['jn' + t] = [t + 1, rig.joinAt(t), 'nb v'];
+        syncLabels(V, 'jn', want);
+        cap(k === 0 ? [['Tunjuk bilangan cantuman blok', 'gold']] : k === 1 ? [['Permukaan rata merah bercantum', 'err']] : [[`${k - 1} cantuman`, 'err']]);
+        if (animate && k > 1) knock(.1, 500 + k * 60);
+      }
+    };
+  }
+  const thinkSeq = final => countSeq(PV.LZ.V, PV.rig, cap, {
+    final, fit: 2.6, title: final ? 'Tonton: langkah fikir' : 'Tonton: pengiraan 5 x 6 - 8',
+    onStep: (k, m) => { $('#s04t1').classList.toggle('on', final || k >= m.red); $('#s04t2').classList.toggle('on', final || k >= m.jEnd); }
+  });
+  hb.addEventListener('click', async () => {
+    if (!isEnabled(hb)) { toast('Semua bantuan sudah dibuka.'); return; }
+    const V = await PV.LZ.ready(); if (!V) return;
+    if (!played) { toast('Tonton blok mendarat dahulu.'); return; }
+    if (clickMode) setClick(false, true);
+    level++; addHelp('S04'); log('S04', 'help_open', { level }); ui();
+    clearOverlays(V);
+    player.load(level === 1 ? help1Seq() : thinkSeq(correct));
+  });
+  chk.addEventListener('click', () => {
+    if (!isEnabled(chk)) { say(fb, 'info', 'Taip jawapan kamu dahulu.'); inp.focus(); return; }
+    const v = parseInt(inp.value, 10); newAttempt('S04'); firstVal ??= v; checked = true;
+    correct = v === 22;
+    log('S04', 'check', { value: v, first_value: firstVal, correct, strategy, attempts: attempts.S04, help_level: level });
+    if (correct) {
+      say(fb, 'ok', 'Betul. Jumlah permukaan rata terdedah = 30 - 8 = 22.'); confetti();
+      $('#s04t1').classList.add('on'); $('#s04t2').classList.add('on'); $('#s04t3').classList.add('on');
+      if (PV.LZ.V && played) { if (clickMode) setClick(false, true); clearOverlays(PV.LZ.V); player.load(thinkSeq(true)); }
+    } else { say(fb, 'err', 'Cuba kira permukaan rata yang bercantum semula.'); shake(inp); }
+    ui();
+  });
+  function setClick(on, quiet) {
+    const V = PV.LZ.V, rig = PV.rig;
+    clickMode = on; if (on) strategy = 'klik'; log('S04', 'strategy', on ? 'klik' : 'formula');
+    if (V && rig) {
+      player.close(); clearOverlays(V); rig.explode(0); V.setPick({ faces: on && ready }); P.hidden = false;
+      if (on) { P.paint(); cap([['Klik setiap permukaan rata kecil yang terdedah', 'gold']]); }
+      else { rig.paint(() => ({})); if (!quiet) player.load(introSeq(), { autoplay: false, at: 2 }); }
+    }
+    ui();
+  }
+  cbtn.addEventListener('click', async () => { await PV.LZ.ready(); if (!played) { toast('Tonton blok mendarat dahulu.'); return; } setClick(!clickMode); if (clickMode) say(fb, 'info', 'Klik permukaan rata kecil satu demi satu. Jangan lupa tapak bawah — guna Pandangan bawah.'); });
+  $('#s04replay').addEventListener('click', async () => { log('S04', 'replay'); if (await PV.LZ.ready()) { if (clickMode) setClick(false, true); player.load(introSeq()); } });
+  $('#s04top').addEventListener('click', () => PV.LZ.V?.view(VIEW_TOP));
+  $('#s04bottom').addEventListener('click', () => { PV.LZ.V?.view(VIEW_BOTTOM); log('S04', 'view_bottom'); });
+  next.addEventListener('click', () => { if (!isEnabled(next)) { say(fb, 'info', 'Tekan Semak dahulu, atau buka bantuan kedua.'); return; } go('S05', true); });
+  function reset() {
+    inp.value = ''; correct = false; level = 0; clickMode = false; P.clear(); say(fb);
+    $$('#s04think .tcard').forEach(t => t.classList.remove('on'));
+    if (PV.rig) { PV.LZ.V.setPick({ faces: false }); PV.LZ.V.view(VIEW_TOP); if (played) player.load(introSeq(), { autoplay: false, at: 2 }); }
+    ui();
+  }
+  // Set semula clears the screen only; attempt history (checked, firstVal, log) stays
+  $('#s04reset').addEventListener('click', () => { reset(); log('S04', 'reset'); });
+  ui();
+  return {
+    async enter() { const V = await PV.LZ.ready(); if (!V) return; V.start(); if (!player.seq && !clickMode) player.load(introSeq()); },
+    leave() { player.pause(); PV.LZ.V?.stop(); },
+    restart() { reset(); played = false; player.close(); }
+  };
+})();
+
+
+/* =========================================================
+   S05 — Item akhir (tiada petunjuk, respons pertama dikunci)
+   ========================================================= */
+const ITEM1 = [{ id: '1A', text: '6 permukaan rata', key: true }, { id: '1B', text: '10 bucu', key: false }, { id: '1C', text: '12 tepi', key: true }];
+const ITEM2_KEY = 22;
+const ITEM_VERSION = 'blok-mainan-item-1-2-v1';
+const STORE_KEY = 'tims.blok-mainan.submission';
+function loadSubmission() { try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; } }
+function saveSubmission(s) { try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch { } }
+
+const S05 = (() => {
+  const fb = $('#s05fb'), btn = $('#s05submit'), num = $('#s05num');
+  blockSVG($('#s05fig1'), ROW4); blockSVG($('#s05fig2'), SHAPE5);
+  let sending = false, submitted = loadSubmission(), attemptId = null;
+  const changes = [];
+  const TB = TFTable($('#s05table'), ITEM1, (id, v) => { changes.push({ k: id, v, t: new Date().toISOString() }); log('S05', 'draft_response', { row: id, value: v }); say(fb); update(); });
+  digitsOnly(num);
+  num.addEventListener('input', () => { changes.push({ k: 'item2', v: num.value, t: new Date().toISOString() }); say(fb); update(); });
+  const allFilled = () => TB.filled === 3 && num.value.trim() !== '';
+  function update() {
+    if (submitted) { btn.textContent = 'Lihat rumusan →'; setEnabled(btn, true); return; }
+    btn.textContent = sending ? 'Menghantar…' : 'Hantar';
+    setEnabled(btn, allFilled() && !sending);
+  }
+  function lock() {
+    TB.load(submitted.first_response.item1); TB.lock(true); num.value = submitted.first_response.item2 ?? ''; num.disabled = true;
+    $('#s05reset').disabled = true; $('#s05root').classList.add('locked'); update();
+  }
+  btn.addEventListener('click', async () => {
+    if (submitted) { go('S06', true); return; }
+    if (!isEnabled(btn)) { if (!sending) { say(fb, 'info', 'Sila jawab semua bahagian dahulu'); shake(btn); } return; }
+    sending = true; TB.lock(true); num.disabled = true; update(); say(fb);
+    attemptId ||= (crypto.randomUUID ? crypto.randomUUID() : 'att-' + Date.now()); // network retries reuse the same attempt_id
+    const first_response = { item1: TB.values, item2: parseInt(num.value, 10) };
+    log('S05', 'submit_attempt', { first_response, attempt_id: attemptId });
+    await sleep(800); // simulated network save
+    if ($('#devFail').checked) {
+      sending = false; TB.lock(false); num.disabled = false; update(); log('S05', 'submit_failed', { attempt_id: attemptId });
+      say(fb, 'err', 'Respons belum dapat dihantar. Draf kamu masih ada — cuba hantar semula.'); return;
+    }
+    const s1 = ITEM1.every(r => first_response.item1[r.id] === r.key) ? 1 : 0, s2 = first_response.item2 === ITEM2_KEY ? 1 : 0;
+    submitted = {
+      attempt_id: attemptId, item_version: ITEM_VERSION, first_response, item_scores: { item1: s1, item2: s2 }, final_score: s1 + s2, max_score: 2,
+      submitted_at: new Date().toISOString(), active_ms: activeMs('S05'), changes: [...changes],
+      practice: { attempts: { ...attempts }, helps: { ...helps } }
+    };
+    saveSubmission(submitted); sending = false; log('S05', 'submit_saved', { attempt_id: attemptId, final_score: submitted.final_score });
+    lock(); unlock('S06'); renderStepper(); toast('Respons disimpan.');
+    setTimeout(() => go('S06', true), reducedMotion ? 0 : 700);
+  });
+  $('#s05reset').addEventListener('click', () => { if (submitted) return; TB.reset(); num.value = ''; say(fb); update(); log('S05', 'draft_reset'); });
+  if (submitted) lock();
+  update();
+  return { get submission() { return submitted; } };
+})();
+
+/* =========================================================
+   S06 — Rumusan: skor sebenar, penerangan beranimasi,
+   banding respons, latihan pengukuhan (tidak ubah skor)
+   ========================================================= */
+const PRACTICE = [
+  { cells: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [0, 1, 0]], desc: 'Ling mencantum 3 blok dalam satu baris dan menambah 1 blok di atas blok pertama.' },
+  { cells: [[0, 0, 0], [1, 0, 0], [1, 1, 0]], desc: 'Ling mencantum 2 blok dan menambah 1 blok di atas blok kedua.' },
+  { cells: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [3, 1, 0]], desc: 'Ling mencantum 4 blok dalam satu baris dan menambah 1 blok di atas blok terakhir.' },
+  { cells: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [0, 1, 0], [0, 2, 0]], desc: 'Ling mencantum 3 blok dalam satu baris dan menyusun 2 blok lagi di atas blok pertama.' }
+];
+function joinsOf(cells) { const S = new Set(cells.map(c => c.join())); return cells.reduce((a, c) => a + [[1, 0, 0], [0, 1, 0], [0, 0, 1]].filter(d => S.has(c.map((v, k) => v + d[k]).join())).length, 0); }
+
+const S06 = (() => {
+  let explain = false, compare = false, practice = false, seen = false, tk = 0, xtab = 1, pi = 0, pWrong = 0;
+  const R = {};
+  const opts = { ...VIEW_TOP, fit: 2.6, sway: true, label: 'Penerangan: kuboid dan bentuk lima kubus' };
+  const LZ = makeLazy($('#s06viz'), opts, V => {
+    R.q = BlockRig(V, ROW4, { pre: 'q' }); R.h = Hull(V, [4, 1, 1], { parent: R.q.root, pre: 'h' });
+    R.s = BlockRig(V, SHAPE5, { pre: 's' }); V.scene.position.y = -.35;
+    V.setPick({ faces: false, edges: false, verts: false });
+    opts.onFrame = now => { R.q.step(now); R.s.step(now); };
+  });
+  const player = SeqPlayer($('#s06player'));
+  const cap = items => setCap('s06cap', items);
+  // Item 1: count permukaan rata, bucu, tepi one after another, then the summary
+  function item1Seq() {
+    const V = LZ.V, H = R.h, PARTS = ['face', 'vert', 'edge'], lens = PARTS.map(p => PART[p].n), n = lens.reduce((a, b) => a + b, 0) + 1;
+    const doneTxt = p => [`${PART[p].n} ${PART[p].name.toLowerCase()}${p === 'vert' ? ' (bukan 10)' : ''}`, 'ok'];
+    let shown = null;
+    return {
+      title: 'Tonton: sifat kuboid', n,
+      draw(k, animate) {
+        R.q.root.visible = true; R.s.root.visible = false;
+        if (k === n) { H.reset(); shown = null; R.q.paint(() => ({})); cap([['Kuboid mempunyai 6 permukaan rata, 8 bucu dan 12 tepi.', 'ok']]); return; }
+        let o = 0, pi = 0; while (pi < 2 && k > o + lens[pi]) { o += lens[pi]; pi++; }
+        const p = PARTS[pi], local = k - o;
+        if (p !== shown) { H.reset(); shown = p; }
+        hullSeq(V, H, p, { fresh: false, prep: () => R.q.paint(() => ({ opacity: .28 })) }).draw(local, animate);
+        cap(k === 0 ? [['Kira sifat kuboid']] : [...PARTS.slice(0, pi).map(doneTxt), local === lens[pi] ? doneTxt(p) : [`${PART[p].name}: ${local} …`]]);
+      }
+    };
+  }
+  // Item 2: 5 × 6 − 4 × 2 with the blocks pulled apart
+  function item2Seq() {
+    const s = countSeq(LZ.V, R.s, cap, { fit: 2.6, title: 'Tonton: permukaan rata terdedah' }), d = s.draw;
+    s.draw = (k, a, alive) => { R.q.root.visible = false; R.s.root.visible = true; R.h.reset(); return d(k, a, alive); };
+    return s;
+  }
+  async function play() {
+    const V = await LZ.ready(); if (!V) return;
+    V.start(); V.clearLabels(); R.h.reset(); R.q.paint(() => ({})); R.s.paint(() => ({})); R.s.explode(0, true);
+    $$('.xtabs .btn').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.x === xtab)));
+    V.view({ ...VIEW_TOP, fit: 2.6 });
+    player.load(xtab === 1 ? item1Seq() : item2Seq());
+  }
+  function setExplain(on, user) {
+    explain = on; $('#btn_explain').setAttribute('aria-pressed', String(on)); $('#btn_explain').textContent = on ? 'Tutup penerangan' : 'Lihat penerangan';
+    $('#s06x').hidden = !on; if (user) log('S06', 'explanation_open', on);
+    if (on) { seen = true; play(); } else { player.close(); LZ.V?.stop(); }
+    ui();
+  }
+  $$('.xtabs .btn').forEach(b => b.addEventListener('click', () => { xtab = +b.dataset.x; log('S06', 'explanation_step', xtab); play(); }));
+  function renderCompare() {
+    const sub = S05.submission; if (!sub) return;
+    const r = sub.first_response;
+    const row = (k, you, key, ok) => `<tr><td><b>${k}</b></td><td>${you}</td><td>${key}</td><td class="${ok ? 'ok' : 'bad'}">${ok ? '✓ Sama' : '✗ Berbeza'}</td></tr>`;
+    $('#s06cmp').innerHTML = `<table class="cmptable"><thead><tr><th></th><th>Respons kamu</th><th>Jawapan rujukan</th><th></th></tr></thead><tbody>${ITEM1.map(i => row(`${i.id} ${i.text}`, tfTxt(r.item1[i.id]), tfTxt(i.key), r.item1[i.id] === i.key)).join('')}${row('Item 2', r.item2, ITEM2_KEY, r.item2 === ITEM2_KEY)}</tbody></table>`;
+  }
+  function setCompare(on, user) {
+    compare = on; $('#btn_compare').setAttribute('aria-pressed', String(on)); $('#s06cmp').hidden = !on;
+    if (on) { renderCompare(); seen = true; } if (user) log('S06', 'compare_open', on); ui();
+  }
+  function renderPractice() {
+    const q = PRACTICE[pi % PRACTICE.length], n = q.cells.length, j = joinsOf(q.cells), ans = n * 6 - j * 2; pWrong = 0;
+    $('#s06prac').innerHTML = `<div class="pbox"><span class="itag">LATIHAN PENGUKUHAN</span><p class="stem">${q.desc} Berapakah jumlah permukaan rata kecil bentuk sekarang?</p><div class="isofig"><svg id="s06pfig" role="img" aria-label="Bentuk ${n} blok"></svg></div><div class="ansrow"><input class="numin" id="s06pin" inputmode="numeric" maxlength="3" aria-label="Jawapan latihan"><button class="btn primary" id="s06pchk">Semak</button><button class="btn" id="s06pnew">Soalan lain</button></div><div class="fb" id="s06pfb" aria-live="polite"></div></div>`;
+    blockSVG($('#s06pfig'), q.cells); digitsOnly($('#s06pin'));
+    $('#s06pin').addEventListener('keydown', e => { if (e.key === 'Enter') $('#s06pchk').click(); });
+    $('#s06pchk').addEventListener('click', () => {
+      const v = parseInt($('#s06pin').value, 10), f = $('#s06pfb');
+      if (isNaN(v)) { say(f, 'info', 'Taip jawapan kamu dahulu.'); return; }
+      const ok = v === ans; log('S06', 'practice_check', { q: pi % PRACTICE.length, value: v, correct: ok });
+      if (ok) { say(f, 'ok', `Betul. ${n} x 6 - ${j} x 2 = ${ans}.`); confetti(); }
+      else { pWrong++; say(f, 'err', pWrong > 1 ? `Cuba kira permukaan rata yang bercantum semula. Bentuk ini ada ${j} cantuman.` : 'Cuba kira permukaan rata yang bercantum semula.'); shake($('#s06pin')); }
+    });
+    $('#s06pnew').addEventListener('click', () => { pi++; renderPractice(); $('#s06pin').focus(); });
+  }
+  function setPractice(on, user) {
+    practice = on; $('#btn_practice').setAttribute('aria-pressed', String(on)); $('#s06prac').hidden = !on;
+    if (on) { renderPractice(); seen = true; } if (user) log('S06', 'practice_open', on); ui();
+  }
+  function ui() { setEnabled($('#s06done'), seen); }
+  $('#btn_explain').addEventListener('click', () => setExplain(!explain, true));
+  $('#btn_compare').addEventListener('click', () => setCompare(!compare, true));
+  $('#btn_practice').addEventListener('click', () => setPractice(!practice, true));
+  $('#btn_retry').addEventListener('click', () => {
+    openModal(`
+    <h3 id="modalTitle">Cuba semula latihan</h3><p class="small-muted" style="margin:0">Sesi latihan baharu. Respons dan skor item kendiri tidak berubah.</p>
+    <div class="opts">
+      <button class="opt" data-c="S02"><b>Langkah 2 · Sifat kuboid</b>Klik label dan tandakan Benar atau Palsu.</button>
+      <button class="opt" data-c="S03"><b>Langkah 3 · Permukaan rata kecil yang terdedah</b>Pilih permukaan rata terdedah pada 2 kubus.</button>
+      <button class="opt" data-c="S04"><b>Langkah 4 · Bentuk 5 kubus</b>Kira jumlah permukaan rata kecil yang terdedah.</button>
+    </div><div style="text-align:right"><button class="btn" data-c="close">Tutup</button></div>`, c => {
+      if (c === 'close') return;
+      log('S06', 'remedial_start', c); newAttempt(c);
+      ({ S02, S03, S04 })[c].restart(); go(c);
+      toast('Mod latihan: skor item kekal.');
+    });
+  });
+  $('#s06done').addEventListener('click', () => {
+    if (!isEnabled($('#s06done'))) { toast('Buka penerangan, banding respons atau latihan pengukuhan dahulu.'); return; }
+    log('S06', 'completed'); confetti();
+    openModal(`<div class="finish"><img src="assets/kotak_blok.png" alt="Kotak berisi blok mainan" onerror="this.remove()"><div><h3 id="modalTitle">Tahniah! 🎉</h3><p>Kamu telah selesai: Blok Mainan.</p><p class="small-muted">Kuboid mempunyai 6 permukaan rata, 8 bucu dan 12 tepi. Setiap cantuman menutup 2 permukaan rata kecil.</p><div style="text-align:right"><button class="btn primary" data-c="close">Tutup</button></div></div></div>`, () => { });
+  });
+  function enter() {
+    const sub = S05.submission;
+    if (!sub) { $('#s06score').textContent = 'Menunggu rekod respons'; $('#s06resp').textContent = ''; return; }
+    const r = sub.first_response;
+    $('#s06resp').innerHTML = `<span class="k-lbl">RESPONS MURID</span><br>Item 1: <b>${ITEM1.map(i => tfTxt(r.item1[i.id])).join(', ')}</b> <span class="${sub.item_scores.item1 ? 'tag-ok' : 'tag-bad'}">${sub.item_scores.item1 ? '✓' : '✗'}</span><br>Item 2: <b>${r.item2}</b> <span class="${sub.item_scores.item2 ? 'tag-ok' : 'tag-bad'}">${sub.item_scores.item2 ? '✓' : '✗'}</span><br><span class="small-muted">Masa menjawab: ${fmtMs(sub.active_ms)}</span>`;
+    const p = sub.practice || { attempts: {}, helps: {} }, S = ['S01', 'S02', 'S03', 'S04'];
+    $('#s06train').textContent = `${S.reduce((a, s) => a + (p.attempts[s] || 0), 0)} cubaan; ${S.reduce((a, s) => a + (p.helps[s] || 0), 0)} bantuan digunakan`;
+    // score counts up one mark at a time
+    const el = $('#s06score'); let shown = 0; el.textContent = `0 daripada ${sub.max_score}`;
+    const tick = () => { if (shown >= sub.final_score) return; shown++; el.textContent = `${shown} daripada ${sub.max_score}`; el.animate([{ transform: 'scale(1.25)' }, { transform: 'none' }], 300); setTimeout(tick, 450); };
+    setTimeout(tick, reducedMotion ? 0 : 500);
+    if (compare) renderCompare();
+    if (explain) play();
+  }
+  return { enter, leave() { player.close(); LZ.V?.stop(); } };
+})();
+
+/* ---------- modal ---------- */
+function openModal(html, onPick) {
+  const m = $('#modal'); $('#modalBox').innerHTML = html; m.classList.add('show');
+  const prev = document.activeElement;
+  const close = () => { m.classList.remove('show'); m.removeEventListener('click', h); removeEventListener('keydown', k); prev && prev.focus(); };
+  const h = e => { const b = e.target.closest('[data-c]'); if (b) { close(); onPick(b.dataset.c); } else if (e.target === m) close(); };
+  const k = e => { if (e.key === 'Escape') close(); };
+  m.addEventListener('click', h); addEventListener('keydown', k);
+  $('#modalBox button')?.focus();
+}
+
+/* =========================================================
+   Navigation
+   ========================================================= */
+const ORDER = ['S01', 'S02', 'S03', 'S04', 'S05', 'S06'];
+const NAMES = ['Konsep', 'Asas', 'Pertengahan', 'Lanjutan', 'Item akhir', 'Rumusan'];
+const HOOKS = { S01, S02, S03, S04, S06 };
+const unlocked = new Set(['S01']);
+let current = null;
+function unlock(id) { unlocked.add(id); renderStepper(); }
+// while the final item is being answered, S01–S04 cannot be reopened
+const answering = () => current === 'S05' && !S05.submission;
+function renderStepper() {
+  $('#stepper').innerHTML = ORDER.map((id, i) => {
+    const done = ORDER.indexOf(current) > i || (id === 'S05' && S05.submission);
+    const off = !unlocked.has(id) || (answering() && i < 4) || (id === 'S06' && !S05.submission);
+    return `<button class="step ${done ? 'done' : ''}" data-id="${id}" ${off ? 'disabled' : ''} ${id === current ? 'aria-current="step"' : ''}><span class="num">${done ? '✓' : i + 1}</span><span class="lbl">${NAMES[i]}</span></button>`;
+  }).join('');
+  $$('#stepper .step').forEach(b => b.addEventListener('click', () => go(b.dataset.id)));
+}
+function go(id, fromNext) {
+  if (fromNext) unlocked.add(id);
+  if (!unlocked.has(id) || id === current) return;
+  if (id === 'S06' && !S05.submission) return;
+  if (current) { HOOKS[current]?.leave?.(); $('#' + current).classList.remove('on'); }
+  current = id; $('#' + id).classList.add('on');
+  timerStart(id); log(id, 'screen_enter');
+  HOOKS[id]?.enter?.();
+  renderStepper(); scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+}
+
+/* ---------- developer panel ---------- */
+function renderDevLog() { $('#devLog').textContent = LOG.slice(-60).reverse().map(e => JSON.stringify(e)).join('\n'); $('#devRenderer').textContent = 'Pemapar 3D: ' + (RENDERER_KIND || 'belum dimuatkan'); }
+$('#devToggle').addEventListener('click', () => { const d = $('#dev'), on = !d.classList.contains('show'); d.classList.toggle('show', on); $('#devToggle').setAttribute('aria-expanded', String(on)); if (on) renderDevLog(); });
+$('#devJump').innerHTML = ORDER.map(id => `<button data-id="${id}">${id}</button>`).join('');
+$$('#devJump button').forEach(b => b.addEventListener('click', () => { ORDER.slice(0, 5).forEach(id => unlocked.add(id)); go(b.dataset.id); }));
+$('#devRM').checked = reducedMotion;
+$('#devRM').addEventListener('change', e => { reducedMotion = e.target.checked; document.body.classList.toggle('rm', reducedMotion); });
+$('#devSound').addEventListener('change', e => { soundOn = e.target.checked; });
+$('#devSVG').checked = FORCE_SVG;
+$('#devSVG').addEventListener('change', e => { const u = new URL(location.href); e.target.checked ? u.searchParams.set('svg', '1') : u.searchParams.delete('svg'); location.href = u; });
+$('#devClear').addEventListener('click', () => { try { localStorage.removeItem(STORE_KEY); } catch { } location.reload(); });
+
+if (S05.submission) ORDER.forEach(id => unlocked.add(id));
+go('S01');
+
+</script>
+</body>
+</html>
